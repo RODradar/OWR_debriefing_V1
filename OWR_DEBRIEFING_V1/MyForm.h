@@ -13,8 +13,21 @@
 #include <msclr/marshal_cppstd.h>
 #include <iomanip>
 
+
+//-----------------------------------------
+//		Misc.
+//-----------------------------------------
 #define	GOOD							0
 #define FAULT							1
+#define MAX_STRING_LENGTH				512
+//-----------------------------------------
+//		FILES & FOLDERS
+//-----------------------------------------
+#define EXPERIMENT_NUMBER_FILE			"expNum.txt"
+#define	EXPERIMENT_DEF_FILE				"LOG.txt"
+#define	EXPERIMENT_DETECTIONS_FILE		"Detections.bin"
+#define	INITIAL_VALUES_FILE_NAME		"INIT_FORM.bin"
+#define GROUND_TRUTHS_FILE_NAME			"ground_truths.obj"
 //-----------------------------------------
 //		Display
 //-----------------------------------------
@@ -33,9 +46,7 @@
 //-----------------------------------------
 //		Constants
 //-----------------------------------------
-#define	INITIAL_VALUES_FILE_NAME		"INIT_FORM.bin"
-#define TARGETS_FILE_NAME				"Targets.bin"
-#define GROUND_TRUTHS_FILE_NAME			"ground_truths.obj"
+
 //-----------------------------------------
 //		Obstacles map
 //-----------------------------------------
@@ -62,7 +73,10 @@ typedef struct T_INITIAL_data
 	int							screen_width;
 	bool						route_new;
 	bool						show_detections;
-	char						Obstackes_file_name[256];
+	char						OBSTACLES_file_name[MAX_STRING_LENGTH];
+	char						EXPERIMENT_directory[MAX_STRING_LENGTH];
+	char						DETECTIONS_folder[MAX_STRING_LENGTH];
+	char						MAP_image_file[MAX_STRING_LENGTH];
 	int							max_range_error_meter;
 	int							reliability_threshold;
 	int							wire_segment_length_meter;
@@ -76,8 +90,6 @@ typedef struct T_INITIAL_data
 //-----------------------------------------
 namespace ROD_OMR_V1 
 {
-
-
 	using namespace System;
 	using namespace System::ComponentModel;
 	using namespace System::Collections;
@@ -92,6 +104,8 @@ namespace ROD_OMR_V1
 
 	//-----------------------------------------
 	//		Struct:		T_Aux_data
+	//  Todo Alon, 6.8.2013: (1) change to 3d, (2) add =, +,-, and scalar multiplication methods 
+	//		(3) add transformation from cartesian to spherical
 	//-----------------------------------------
 	public value struct PointD
 	{
@@ -285,7 +299,8 @@ private: System::Windows::Forms::TabPage^  Viewer;
 private: System::Windows::Forms::TabPage^  tab_Scenario_generator;
 private: System::Windows::Forms::GroupBox^  groupBox8;
 private: System::Windows::Forms::Button^  B_LOAD_DETCTIONS;
-private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS;
+private: System::Windows::Forms::TextBox^  B_DETECTIONS_FOLDER;
+
 private: System::Windows::Forms::GroupBox^  groupBox7;
 private: System::Windows::Forms::Button^  B_LOAD_MAP_IMAGE;
 private: System::Windows::Forms::TextBox^  B_FILE_MAP;
@@ -294,8 +309,17 @@ private: System::Windows::Forms::Button^  B_LOAD_TOM;
 private: System::Windows::Forms::TextBox^  B_FILE_TOM;
 private: System::Windows::Forms::GroupBox^  groupBox9;
 private: System::Windows::Forms::GroupBox^  groupBox10;
-private: System::Windows::Forms::Button^  B_SAVE_DETECTIONS_FILE;
-private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
+private: System::Windows::Forms::Button^  B_SAVE_DETECTIONS_DIRECTORY;
+private: System::Windows::Forms::TextBox^  B_EXPERIMENT_DIRECTORY;
+
+
+
+private: System::Windows::Forms::Label^  label50;
+private: System::Windows::Forms::TextBox^  B_MESSAGE;
+private: System::Windows::Forms::FolderBrowserDialog^  B_BROWSE_DIR;
+private: System::Windows::Forms::GroupBox^  groupBox11;
+private: System::Windows::Forms::Button^  B_VIEWER_STEP;
+private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
 
 
 
@@ -359,6 +383,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->label8 = (gcnew System::Windows::Forms::Label());
 			this->B_RADAR_RANGE = (gcnew System::Windows::Forms::NumericUpDown());
 			this->groupBox1 = (gcnew System::Windows::Forms::GroupBox());
+			this->B_PLOT_DETECTIONS = (gcnew System::Windows::Forms::CheckBox());
 			this->label27 = (gcnew System::Windows::Forms::Label());
 			this->label26 = (gcnew System::Windows::Forms::Label());
 			this->B_GPS_LONG = (gcnew System::Windows::Forms::TextBox());
@@ -366,19 +391,20 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->B_OPEN_OBSTACLES_FILE = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->B_SAVE_OBSTACLES_FILE_DIALOGE = (gcnew System::Windows::Forms::SaveFileDialog());
 			this->groupBox5 = (gcnew System::Windows::Forms::GroupBox());
+			this->label50 = (gcnew System::Windows::Forms::Label());
+			this->B_MESSAGE = (gcnew System::Windows::Forms::TextBox());
 			this->label16 = (gcnew System::Windows::Forms::Label());
 			this->label15 = (gcnew System::Windows::Forms::Label());
 			this->label5 = (gcnew System::Windows::Forms::Label());
 			this->label14 = (gcnew System::Windows::Forms::Label());
 			this->B_SCREEN_WIDTH = (gcnew System::Windows::Forms::TrackBar());
-			this->B_PLOT_DETECTIONS = (gcnew System::Windows::Forms::CheckBox());
 			this->B_STEP_FORWARD = (gcnew System::Windows::Forms::Button());
 			this->B_ERROR_FUNCTION = (gcnew System::Windows::Forms::DataVisualization::Charting::Chart());
 			this->tabControl1 = (gcnew System::Windows::Forms::TabControl());
 			this->Viewer = (gcnew System::Windows::Forms::TabPage());
 			this->groupBox8 = (gcnew System::Windows::Forms::GroupBox());
 			this->B_LOAD_DETCTIONS = (gcnew System::Windows::Forms::Button());
-			this->B_FILE_DETECTIONS = (gcnew System::Windows::Forms::TextBox());
+			this->B_DETECTIONS_FOLDER = (gcnew System::Windows::Forms::TextBox());
 			this->groupBox7 = (gcnew System::Windows::Forms::GroupBox());
 			this->B_LOAD_MAP_IMAGE = (gcnew System::Windows::Forms::Button());
 			this->B_FILE_MAP = (gcnew System::Windows::Forms::TextBox());
@@ -387,9 +413,13 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->B_FILE_TOM = (gcnew System::Windows::Forms::TextBox());
 			this->tab_Scenario_generator = (gcnew System::Windows::Forms::TabPage());
 			this->groupBox10 = (gcnew System::Windows::Forms::GroupBox());
-			this->B_SAVE_DETECTIONS_FILE = (gcnew System::Windows::Forms::Button());
-			this->B_FILE_DETECTIONS_GENERATOR = (gcnew System::Windows::Forms::TextBox());
+			this->B_SAVE_DETECTIONS_DIRECTORY = (gcnew System::Windows::Forms::Button());
+			this->B_EXPERIMENT_DIRECTORY = (gcnew System::Windows::Forms::TextBox());
 			this->groupBox9 = (gcnew System::Windows::Forms::GroupBox());
+			this->B_BROWSE_DIR = (gcnew System::Windows::Forms::FolderBrowserDialog());
+			this->groupBox11 = (gcnew System::Windows::Forms::GroupBox());
+			this->B_VIEWER_STEP = (gcnew System::Windows::Forms::Button());
+			this->B_VIEWER_PLAY = (gcnew System::Windows::Forms::Button());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->B_HELICOPTER_SPEED))->BeginInit();
 			this->groupBox2->SuspendLayout();
 			this->groupBox3->SuspendLayout();
@@ -416,6 +446,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->tab_Scenario_generator->SuspendLayout();
 			this->groupBox10->SuspendLayout();
 			this->groupBox9->SuspendLayout();
+			this->groupBox11->SuspendLayout();
 			this->SuspendLayout();
 			// 
 			// B_CLEAR_WIRE
@@ -435,7 +466,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->B_FLY->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->B_FLY->ForeColor = System::Drawing::Color::Black;
-			this->B_FLY->Location = System::Drawing::Point(6, 18);
+			this->B_FLY->Location = System::Drawing::Point(16, 17);
 			this->B_FLY->Name = L"B_FLY";
 			this->B_FLY->Size = System::Drawing::Size(69, 48);
 			this->B_FLY->TabIndex = 2;
@@ -445,7 +476,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			// B_HELICOPTER_SPEED
 			// 
-			this->B_HELICOPTER_SPEED->Location = System::Drawing::Point(143, 19);
+			this->B_HELICOPTER_SPEED->Location = System::Drawing::Point(96, 121);
 			this->B_HELICOPTER_SPEED->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 200, 0, 0, 0 });
 			this->B_HELICOPTER_SPEED->Minimum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 1, 0, 0, 0 });
 			this->B_HELICOPTER_SPEED->Name = L"B_HELICOPTER_SPEED";
@@ -457,7 +488,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label1
 			// 
 			this->label1->AutoSize = true;
-			this->label1->Location = System::Drawing::Point(93, 21);
+			this->label1->Location = System::Drawing::Point(46, 123);
 			this->label1->Name = L"label1";
 			this->label1->Size = System::Drawing::Size(44, 13);
 			this->label1->TabIndex = 6;
@@ -466,7 +497,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label6
 			// 
 			this->label6->AutoSize = true;
-			this->label6->Location = System::Drawing::Point(225, 21);
+			this->label6->Location = System::Drawing::Point(178, 123);
 			this->label6->Name = L"label6";
 			this->label6->Size = System::Drawing::Size(39, 13);
 			this->label6->TabIndex = 11;
@@ -476,16 +507,17 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			this->groupBox2->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(128)), static_cast<System::Int32>(static_cast<System::Byte>(128)),
 				static_cast<System::Int32>(static_cast<System::Byte>(255)));
-			this->groupBox2->Controls->Add(this->B_HELICOPTER_SPEED);
-			this->groupBox2->Controls->Add(this->label1);
-			this->groupBox2->Controls->Add(this->label6);
+			this->groupBox2->Controls->Add(this->B_PLOT_DETECTIONS);
+			this->groupBox2->Controls->Add(this->panel1);
+			this->groupBox2->Controls->Add(this->B_STEP_FORWARD);
+			this->groupBox2->Controls->Add(this->B_FLY);
 			this->groupBox2->ForeColor = System::Drawing::Color::White;
 			this->groupBox2->Location = System::Drawing::Point(1, 96);
 			this->groupBox2->Name = L"groupBox2";
-			this->groupBox2->Size = System::Drawing::Size(330, 45);
+			this->groupBox2->Size = System::Drawing::Size(330, 73);
 			this->groupBox2->TabIndex = 24;
 			this->groupBox2->TabStop = false;
-			this->groupBox2->Text = L"Helicopter";
+			this->groupBox2->Text = L"Experiment";
 			// 
 			// groupBox3
 			// 
@@ -511,7 +543,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// B_WIRE_SEGMENT_LENGTH_METER
 			// 
 			this->B_WIRE_SEGMENT_LENGTH_METER->Increment = System::Decimal(gcnew cli::array< System::Int32 >(4) { 10, 0, 0, 0 });
-			this->B_WIRE_SEGMENT_LENGTH_METER->Location = System::Drawing::Point(143, 63);
+			this->B_WIRE_SEGMENT_LENGTH_METER->Location = System::Drawing::Point(115, 63);
 			this->B_WIRE_SEGMENT_LENGTH_METER->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 1000, 0, 0, 0 });
 			this->B_WIRE_SEGMENT_LENGTH_METER->Name = L"B_WIRE_SEGMENT_LENGTH_METER";
 			this->B_WIRE_SEGMENT_LENGTH_METER->Size = System::Drawing::Size(76, 20);
@@ -521,7 +553,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label24
 			// 
 			this->label24->AutoSize = true;
-			this->label24->Location = System::Drawing::Point(220, 66);
+			this->label24->Location = System::Drawing::Point(192, 66);
 			this->label24->Name = L"label24";
 			this->label24->Size = System::Drawing::Size(15, 13);
 			this->label24->TabIndex = 31;
@@ -530,7 +562,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label25
 			// 
 			this->label25->AutoSize = true;
-			this->label25->Location = System::Drawing::Point(39, 65);
+			this->label25->Location = System::Drawing::Point(11, 65);
 			this->label25->Name = L"label25";
 			this->label25->Size = System::Drawing::Size(106, 13);
 			this->label25->TabIndex = 30;
@@ -538,7 +570,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			// B_RELIABILITY_THRESHOLD
 			// 
-			this->B_RELIABILITY_THRESHOLD->Location = System::Drawing::Point(143, 42);
+			this->B_RELIABILITY_THRESHOLD->Location = System::Drawing::Point(115, 42);
 			this->B_RELIABILITY_THRESHOLD->Name = L"B_RELIABILITY_THRESHOLD";
 			this->B_RELIABILITY_THRESHOLD->Size = System::Drawing::Size(76, 20);
 			this->B_RELIABILITY_THRESHOLD->TabIndex = 26;
@@ -547,7 +579,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label22
 			// 
 			this->label22->AutoSize = true;
-			this->label22->Location = System::Drawing::Point(220, 45);
+			this->label22->Location = System::Drawing::Point(192, 45);
 			this->label22->Name = L"label22";
 			this->label22->Size = System::Drawing::Size(15, 13);
 			this->label22->TabIndex = 28;
@@ -556,7 +588,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label23
 			// 
 			this->label23->AutoSize = true;
-			this->label23->Location = System::Drawing::Point(47, 44);
+			this->label23->Location = System::Drawing::Point(19, 44);
 			this->label23->Name = L"label23";
 			this->label23->Size = System::Drawing::Size(97, 13);
 			this->label23->TabIndex = 27;
@@ -564,7 +596,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			// B_MAX_ERROR_RANGE
 			// 
-			this->B_MAX_ERROR_RANGE->Location = System::Drawing::Point(143, 21);
+			this->B_MAX_ERROR_RANGE->Location = System::Drawing::Point(115, 21);
 			this->B_MAX_ERROR_RANGE->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 1000, 0, 0, 0 });
 			this->B_MAX_ERROR_RANGE->Name = L"B_MAX_ERROR_RANGE";
 			this->B_MAX_ERROR_RANGE->Size = System::Drawing::Size(76, 20);
@@ -574,7 +606,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label20
 			// 
 			this->label20->AutoSize = true;
-			this->label20->Location = System::Drawing::Point(220, 23);
+			this->label20->Location = System::Drawing::Point(192, 23);
 			this->label20->Name = L"label20";
 			this->label20->Size = System::Drawing::Size(15, 13);
 			this->label20->TabIndex = 25;
@@ -583,7 +615,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label21
 			// 
 			this->label21->AutoSize = true;
-			this->label21->Location = System::Drawing::Point(63, 23);
+			this->label21->Location = System::Drawing::Point(35, 23);
 			this->label21->Name = L"label21";
 			this->label21->Size = System::Drawing::Size(81, 13);
 			this->label21->TabIndex = 24;
@@ -638,9 +670,9 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			this->panel1->Controls->Add(this->B_ROUTE_NEW);
 			this->panel1->Controls->Add(this->B_ROUTE_REPEAT);
-			this->panel1->Location = System::Drawing::Point(199, 126);
+			this->panel1->Location = System::Drawing::Point(216, 28);
 			this->panel1->Name = L"panel1";
-			this->panel1->Size = System::Drawing::Size(113, 39);
+			this->panel1->Size = System::Drawing::Size(104, 39);
 			this->panel1->TabIndex = 5;
 			// 
 			// B_ROUTE_NEW
@@ -854,15 +886,13 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			this->groupBox1->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(128)), static_cast<System::Int32>(static_cast<System::Byte>(128)),
 				static_cast<System::Int32>(static_cast<System::Byte>(255)));
-			this->groupBox1->Controls->Add(this->label27);
+			this->groupBox1->Controls->Add(this->B_HELICOPTER_SPEED);
+			this->groupBox1->Controls->Add(this->label1);
 			this->groupBox1->Controls->Add(this->B_RADAR_RANGE);
-			this->groupBox1->Controls->Add(this->label26);
+			this->groupBox1->Controls->Add(this->label6);
 			this->groupBox1->Controls->Add(this->label8);
-			this->groupBox1->Controls->Add(this->B_GPS_LONG);
-			this->groupBox1->Controls->Add(this->B_GPS_LAT);
 			this->groupBox1->Controls->Add(this->label9);
 			this->groupBox1->Controls->Add(this->label7);
-			this->groupBox1->Controls->Add(this->panel1);
 			this->groupBox1->Controls->Add(this->B_RADAR_FOV);
 			this->groupBox1->Controls->Add(this->label10);
 			this->groupBox1->Controls->Add(this->B_RADAR_REFRESH);
@@ -875,17 +905,29 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->groupBox1->Controls->Add(this->B_FALSE_ALARM_RATE);
 			this->groupBox1->Controls->Add(this->B_WIRE_VARIANCE);
 			this->groupBox1->ForeColor = System::Drawing::Color::White;
-			this->groupBox1->Location = System::Drawing::Point(1, 145);
+			this->groupBox1->Location = System::Drawing::Point(2, 175);
 			this->groupBox1->Name = L"groupBox1";
-			this->groupBox1->Size = System::Drawing::Size(330, 182);
+			this->groupBox1->Size = System::Drawing::Size(330, 147);
 			this->groupBox1->TabIndex = 23;
 			this->groupBox1->TabStop = false;
 			this->groupBox1->Text = L"Radar parameters";
 			// 
+			// B_PLOT_DETECTIONS
+			// 
+			this->B_PLOT_DETECTIONS->AutoSize = true;
+			this->B_PLOT_DETECTIONS->Location = System::Drawing::Point(220, 10);
+			this->B_PLOT_DETECTIONS->Name = L"B_PLOT_DETECTIONS";
+			this->B_PLOT_DETECTIONS->Size = System::Drawing::Size(105, 17);
+			this->B_PLOT_DETECTIONS->TabIndex = 7;
+			this->B_PLOT_DETECTIONS->Text = L"Show detections";
+			this->B_PLOT_DETECTIONS->TextAlign = System::Drawing::ContentAlignment::MiddleRight;
+			this->B_PLOT_DETECTIONS->UseVisualStyleBackColor = true;
+			this->B_PLOT_DETECTIONS->CheckedChanged += gcnew System::EventHandler(this, &MyForm::B_PLOT_DETECTIONS_CheckedChanged);
+			// 
 			// label27
 			// 
 			this->label27->AutoSize = true;
-			this->label27->Location = System::Drawing::Point(26, 148);
+			this->label27->Location = System::Drawing::Point(141, 38);
 			this->label27->Name = L"label27";
 			this->label27->Size = System::Drawing::Size(65, 13);
 			this->label27->TabIndex = 25;
@@ -894,7 +936,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label26
 			// 
 			this->label26->AutoSize = true;
-			this->label26->Location = System::Drawing::Point(36, 126);
+			this->label26->Location = System::Drawing::Point(151, 16);
 			this->label26->Name = L"label26";
 			this->label26->Size = System::Drawing::Size(55, 13);
 			this->label26->TabIndex = 24;
@@ -902,7 +944,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			// B_GPS_LONG
 			// 
-			this->B_GPS_LONG->Location = System::Drawing::Point(96, 142);
+			this->B_GPS_LONG->Location = System::Drawing::Point(211, 32);
 			this->B_GPS_LONG->Name = L"B_GPS_LONG";
 			this->B_GPS_LONG->Size = System::Drawing::Size(76, 20);
 			this->B_GPS_LONG->TabIndex = 23;
@@ -910,7 +952,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			// B_GPS_LAT
 			// 
-			this->B_GPS_LAT->Location = System::Drawing::Point(96, 121);
+			this->B_GPS_LAT->Location = System::Drawing::Point(211, 11);
 			this->B_GPS_LAT->Name = L"B_GPS_LAT";
 			this->B_GPS_LAT->Size = System::Drawing::Size(76, 20);
 			this->B_GPS_LAT->TabIndex = 22;
@@ -923,26 +965,49 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// groupBox5
 			// 
 			this->groupBox5->BackColor = System::Drawing::Color::Blue;
+			this->groupBox5->Controls->Add(this->label27);
+			this->groupBox5->Controls->Add(this->label50);
+			this->groupBox5->Controls->Add(this->B_MESSAGE);
+			this->groupBox5->Controls->Add(this->label26);
 			this->groupBox5->Controls->Add(this->label16);
 			this->groupBox5->Controls->Add(this->label15);
+			this->groupBox5->Controls->Add(this->B_GPS_LONG);
+			this->groupBox5->Controls->Add(this->B_GPS_LAT);
 			this->groupBox5->Controls->Add(this->label5);
 			this->groupBox5->Controls->Add(this->label14);
 			this->groupBox5->Controls->Add(this->B_SCREEN_WIDTH);
-			this->groupBox5->Controls->Add(this->B_PLOT_DETECTIONS);
-			this->groupBox5->Controls->Add(this->B_STEP_FORWARD);
-			this->groupBox5->Controls->Add(this->B_FLY);
 			this->groupBox5->ForeColor = System::Drawing::Color::White;
 			this->groupBox5->Location = System::Drawing::Point(3, 605);
 			this->groupBox5->Name = L"groupBox5";
 			this->groupBox5->Size = System::Drawing::Size(600, 81);
 			this->groupBox5->TabIndex = 27;
 			this->groupBox5->TabStop = false;
-			this->groupBox5->Text = L"Experiment";
+			this->groupBox5->Text = L"Screen";
+			// 
+			// label50
+			// 
+			this->label50->AutoSize = true;
+			this->label50->ForeColor = System::Drawing::Color::White;
+			this->label50->Location = System::Drawing::Point(158, 60);
+			this->label50->Name = L"label50";
+			this->label50->Size = System::Drawing::Size(53, 13);
+			this->label50->TabIndex = 23;
+			this->label50->Text = L"Message:";
+			// 
+			// B_MESSAGE
+			// 
+			this->B_MESSAGE->BackColor = System::Drawing::Color::Black;
+			this->B_MESSAGE->ForeColor = System::Drawing::Color::Yellow;
+			this->B_MESSAGE->Location = System::Drawing::Point(211, 58);
+			this->B_MESSAGE->Name = L"B_MESSAGE";
+			this->B_MESSAGE->ReadOnly = true;
+			this->B_MESSAGE->Size = System::Drawing::Size(384, 20);
+			this->B_MESSAGE->TabIndex = 22;
 			// 
 			// label16
 			// 
 			this->label16->AutoSize = true;
-			this->label16->Location = System::Drawing::Point(540, 45);
+			this->label16->Location = System::Drawing::Point(540, 42);
 			this->label16->Name = L"label16";
 			this->label16->Size = System::Drawing::Size(36, 13);
 			this->label16->TabIndex = 21;
@@ -951,7 +1016,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// label15
 			// 
 			this->label15->AutoSize = true;
-			this->label15->Location = System::Drawing::Point(413, 45);
+			this->label15->Location = System::Drawing::Point(413, 42);
 			this->label15->Name = L"label15";
 			this->label15->Size = System::Drawing::Size(30, 13);
 			this->label15->TabIndex = 20;
@@ -986,25 +1051,13 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->B_SCREEN_WIDTH->Value = 10;
 			this->B_SCREEN_WIDTH->Scroll += gcnew System::EventHandler(this, &MyForm::B_SCREEN_WIDTH_Scroll);
 			// 
-			// B_PLOT_DETECTIONS
-			// 
-			this->B_PLOT_DETECTIONS->AutoSize = true;
-			this->B_PLOT_DETECTIONS->Location = System::Drawing::Point(194, 56);
-			this->B_PLOT_DETECTIONS->Name = L"B_PLOT_DETECTIONS";
-			this->B_PLOT_DETECTIONS->Size = System::Drawing::Size(105, 17);
-			this->B_PLOT_DETECTIONS->TabIndex = 7;
-			this->B_PLOT_DETECTIONS->Text = L"Show detections";
-			this->B_PLOT_DETECTIONS->TextAlign = System::Drawing::ContentAlignment::MiddleRight;
-			this->B_PLOT_DETECTIONS->UseVisualStyleBackColor = true;
-			this->B_PLOT_DETECTIONS->CheckedChanged += gcnew System::EventHandler(this, &MyForm::B_PLOT_DETECTIONS_CheckedChanged);
-			// 
 			// B_STEP_FORWARD
 			// 
 			this->B_STEP_FORWARD->FlatStyle = System::Windows::Forms::FlatStyle::System;
 			this->B_STEP_FORWARD->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->B_STEP_FORWARD->ForeColor = System::Drawing::Color::Black;
-			this->B_STEP_FORWARD->Location = System::Drawing::Point(81, 18);
+			this->B_STEP_FORWARD->Location = System::Drawing::Point(101, 17);
 			this->B_STEP_FORWARD->Name = L"B_STEP_FORWARD";
 			this->B_STEP_FORWARD->Size = System::Drawing::Size(73, 48);
 			this->B_STEP_FORWARD->TabIndex = 6;
@@ -1065,6 +1118,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->Viewer->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(128)), static_cast<System::Int32>(static_cast<System::Byte>(128)),
 				static_cast<System::Int32>(static_cast<System::Byte>(255)));
 			this->Viewer->BorderStyle = System::Windows::Forms::BorderStyle::Fixed3D;
+			this->Viewer->Controls->Add(this->groupBox11);
 			this->Viewer->Controls->Add(this->groupBox8);
 			this->Viewer->Controls->Add(this->groupBox7);
 			this->Viewer->Controls->Add(this->groupBox6);
@@ -1078,7 +1132,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// groupBox8
 			// 
 			this->groupBox8->Controls->Add(this->B_LOAD_DETCTIONS);
-			this->groupBox8->Controls->Add(this->B_FILE_DETECTIONS);
+			this->groupBox8->Controls->Add(this->B_DETECTIONS_FOLDER);
 			this->groupBox8->ForeColor = System::Drawing::Color::White;
 			this->groupBox8->Location = System::Drawing::Point(6, 228);
 			this->groupBox8->Name = L"groupBox8";
@@ -1098,12 +1152,12 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->B_LOAD_DETCTIONS->UseVisualStyleBackColor = true;
 			this->B_LOAD_DETCTIONS->Click += gcnew System::EventHandler(this, &MyForm::B_LOAD_DETCTIONS_Click);
 			// 
-			// B_FILE_DETECTIONS
+			// B_DETECTIONS_FOLDER
 			// 
-			this->B_FILE_DETECTIONS->Location = System::Drawing::Point(6, 19);
-			this->B_FILE_DETECTIONS->Name = L"B_FILE_DETECTIONS";
-			this->B_FILE_DETECTIONS->Size = System::Drawing::Size(305, 20);
-			this->B_FILE_DETECTIONS->TabIndex = 0;
+			this->B_DETECTIONS_FOLDER->Location = System::Drawing::Point(6, 19);
+			this->B_DETECTIONS_FOLDER->Name = L"B_DETECTIONS_FOLDER";
+			this->B_DETECTIONS_FOLDER->Size = System::Drawing::Size(305, 20);
+			this->B_DETECTIONS_FOLDER->TabIndex = 0;
 			// 
 			// groupBox7
 			// 
@@ -1187,34 +1241,34 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			// 
 			this->groupBox10->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(128)), static_cast<System::Int32>(static_cast<System::Byte>(128)),
 				static_cast<System::Int32>(static_cast<System::Byte>(255)));
-			this->groupBox10->Controls->Add(this->B_SAVE_DETECTIONS_FILE);
-			this->groupBox10->Controls->Add(this->B_FILE_DETECTIONS_GENERATOR);
+			this->groupBox10->Controls->Add(this->B_SAVE_DETECTIONS_DIRECTORY);
+			this->groupBox10->Controls->Add(this->B_EXPERIMENT_DIRECTORY);
 			this->groupBox10->ForeColor = System::Drawing::Color::White;
 			this->groupBox10->Location = System::Drawing::Point(2, 328);
 			this->groupBox10->Name = L"groupBox10";
 			this->groupBox10->Size = System::Drawing::Size(330, 77);
 			this->groupBox10->TabIndex = 27;
 			this->groupBox10->TabStop = false;
-			this->groupBox10->Text = L"Detections file:";
+			this->groupBox10->Text = L"Experiment Directory:";
 			// 
-			// B_SAVE_DETECTIONS_FILE
+			// B_SAVE_DETECTIONS_DIRECTORY
 			// 
-			this->B_SAVE_DETECTIONS_FILE->ForeColor = System::Drawing::Color::Black;
-			this->B_SAVE_DETECTIONS_FILE->Location = System::Drawing::Point(219, 44);
-			this->B_SAVE_DETECTIONS_FILE->Name = L"B_SAVE_DETECTIONS_FILE";
-			this->B_SAVE_DETECTIONS_FILE->Size = System::Drawing::Size(93, 27);
-			this->B_SAVE_DETECTIONS_FILE->TabIndex = 7;
-			this->B_SAVE_DETECTIONS_FILE->Text = L"Save as";
-			this->B_SAVE_DETECTIONS_FILE->UseVisualStyleBackColor = true;
-			this->B_SAVE_DETECTIONS_FILE->Click += gcnew System::EventHandler(this, &MyForm::B_SAVE_DETECTIONS_FILE_Click);
+			this->B_SAVE_DETECTIONS_DIRECTORY->ForeColor = System::Drawing::Color::Black;
+			this->B_SAVE_DETECTIONS_DIRECTORY->Location = System::Drawing::Point(219, 44);
+			this->B_SAVE_DETECTIONS_DIRECTORY->Name = L"B_SAVE_DETECTIONS_DIRECTORY";
+			this->B_SAVE_DETECTIONS_DIRECTORY->Size = System::Drawing::Size(93, 27);
+			this->B_SAVE_DETECTIONS_DIRECTORY->TabIndex = 7;
+			this->B_SAVE_DETECTIONS_DIRECTORY->Text = L"Browse...";
+			this->B_SAVE_DETECTIONS_DIRECTORY->UseVisualStyleBackColor = true;
+			this->B_SAVE_DETECTIONS_DIRECTORY->Click += gcnew System::EventHandler(this, &MyForm::B_SAVE_DETECTIONS_DIRECTORY_Click);
 			// 
-			// B_FILE_DETECTIONS_GENERATOR
+			// B_EXPERIMENT_DIRECTORY
 			// 
-			this->B_FILE_DETECTIONS_GENERATOR->Location = System::Drawing::Point(16, 18);
-			this->B_FILE_DETECTIONS_GENERATOR->Name = L"B_FILE_DETECTIONS_GENERATOR";
-			this->B_FILE_DETECTIONS_GENERATOR->Size = System::Drawing::Size(296, 20);
-			this->B_FILE_DETECTIONS_GENERATOR->TabIndex = 6;
-			this->B_FILE_DETECTIONS_GENERATOR->TextChanged += gcnew System::EventHandler(this, &MyForm::B_FILE_DETECTIONS_GENERATOR_TextChanged);
+			this->B_EXPERIMENT_DIRECTORY->Location = System::Drawing::Point(16, 18);
+			this->B_EXPERIMENT_DIRECTORY->Name = L"B_EXPERIMENT_DIRECTORY";
+			this->B_EXPERIMENT_DIRECTORY->Size = System::Drawing::Size(296, 20);
+			this->B_EXPERIMENT_DIRECTORY->TabIndex = 6;
+			this->B_EXPERIMENT_DIRECTORY->TextChanged += gcnew System::EventHandler(this, &MyForm::B_FILE_DETECTIONS_GENERATOR_TextChanged);
 			// 
 			// groupBox9
 			// 
@@ -1226,6 +1280,50 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->groupBox9->TabIndex = 29;
 			this->groupBox9->TabStop = false;
 			this->groupBox9->Text = L"Error function";
+			// 
+			// B_BROWSE_DIR
+			// 
+			this->B_BROWSE_DIR->RootFolder = System::Environment::SpecialFolder::MyDocuments;
+			// 
+			// groupBox11
+			// 
+			this->groupBox11->Controls->Add(this->B_VIEWER_STEP);
+			this->groupBox11->Controls->Add(this->B_VIEWER_PLAY);
+			this->groupBox11->ForeColor = System::Drawing::Color::White;
+			this->groupBox11->Location = System::Drawing::Point(8, 144);
+			this->groupBox11->Name = L"groupBox11";
+			this->groupBox11->Size = System::Drawing::Size(314, 84);
+			this->groupBox11->TabIndex = 4;
+			this->groupBox11->TabStop = false;
+			this->groupBox11->Text = L"Viewer";
+			// 
+			// B_VIEWER_STEP
+			// 
+			this->B_VIEWER_STEP->FlatStyle = System::Windows::Forms::FlatStyle::System;
+			this->B_VIEWER_STEP->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->B_VIEWER_STEP->ForeColor = System::Drawing::Color::Black;
+			this->B_VIEWER_STEP->Location = System::Drawing::Point(91, 19);
+			this->B_VIEWER_STEP->Name = L"B_VIEWER_STEP";
+			this->B_VIEWER_STEP->Size = System::Drawing::Size(73, 48);
+			this->B_VIEWER_STEP->TabIndex = 8;
+			this->B_VIEWER_STEP->Text = L"Step";
+			this->B_VIEWER_STEP->UseVisualStyleBackColor = true;
+			this->B_VIEWER_STEP->Click += gcnew System::EventHandler(this, &MyForm::B_VIEWER_STEP_Click);
+			// 
+			// B_VIEWER_PLAY
+			// 
+			this->B_VIEWER_PLAY->FlatStyle = System::Windows::Forms::FlatStyle::System;
+			this->B_VIEWER_PLAY->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 12, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->B_VIEWER_PLAY->ForeColor = System::Drawing::Color::Black;
+			this->B_VIEWER_PLAY->Location = System::Drawing::Point(6, 19);
+			this->B_VIEWER_PLAY->Name = L"B_VIEWER_PLAY";
+			this->B_VIEWER_PLAY->Size = System::Drawing::Size(69, 48);
+			this->B_VIEWER_PLAY->TabIndex = 7;
+			this->B_VIEWER_PLAY->Text = L"Play";
+			this->B_VIEWER_PLAY->UseVisualStyleBackColor = true;
+			this->B_VIEWER_PLAY->Click += gcnew System::EventHandler(this, &MyForm::B_VIEWER_PLAY_Click);
 			// 
 			// MyForm
 			// 
@@ -1279,6 +1377,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 			this->groupBox10->ResumeLayout(false);
 			this->groupBox10->PerformLayout();
 			this->groupBox9->ResumeLayout(false);
+			this->groupBox11->ResumeLayout(false);
 			this->ResumeLayout(false);
 
 		}
@@ -1293,7 +1392,8 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 		T_HELICOPTER_route	HELICOPTER_route_master;
 		T_HELICOPTER_route	HELICOPTER_route;
 		fstream				*Recording_file_handle;
-		bool				Flight_expeiment_initialized;
+		bool				Experiment_initialized;
+		bool				Viewer_initialized;
 		array<T_Target>^	Radar_detections_array;
 		int					Radar_detections_counter;
 		array<double>^		Error_function_array;
@@ -1311,20 +1411,30 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 		PointD		convert_Screen_to_UTM(PointF Screen_coordinates);
 		PointD		convert_Spherical_to_Cartesian(PointD Spherical_point);
 		PointD		convert_Cartesian_to_Spherical(PointD Cartesian_point);
+		//PointF		convert_Radar_to_Screen(PointD Radar_coordinates);
 		double		Distance_between_points(PointD p1, PointD p2);
 		double		Distance_between_point_and_line(PointD P, PointD L1, PointD L2);
 		double		Line_angle(PointD p1, PointD p2, PointD p3);
 		PointD 		Line_point_projection(PointD p1, PointD p2, PointD p3);
 		int 		Target_is_in_RADAR_FOV(PointD Radar, float Radar_angle, PointD Target);
-		void		Simulate_radar_operation();
+		void		My_message(String^ message_string);
 		void		Init_screen();
-		void		Init_flight_experiment();
-		void		FInalize_flight_experiment();
+
 		void		Obstacles_map_estimate();
 		void		Obstacles_map_plot(T_OBSTACLES_map obstacles_map, Color pen_Color);
 		void		Obstacles_map_error_function();
 		void		Obstacles_map_load(T_OBSTACLES_map % obstacles_map, char* file_name);
-
+		
+		int			Experiment_init();
+		void		Experiment_finalize();
+		void		Experiment_radar_operation();
+		int			Experiment_create_folder(char* experiment_path);
+		int			Experiment_Save_def_file(char*	experiment_path);
+		
+		int			Viewer_init();
+		int			Viewer_finalize();
+		int			Viewer_radar_operation();
+		
 		void		B_PANEL_MouseClick(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
 		void		B_CLEAR_WIRE_Click(System::Object^  sender, System::EventArgs^  e);
 		void		MyForm_FormClosing(System::Object^  sender, System::Windows::Forms::FormClosingEventArgs^  e);
@@ -1332,6 +1442,8 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 		void		B_PANEL_MouseMove(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
 		void		B_PANEL_MouseLeave(System::Object^  sender, System::EventArgs^  e);
 		void		B_FLY_Click(System::Object^  sender, System::EventArgs^  e);
+		void		B_VIEWER_PLAY_Click(System::Object^  sender, System::EventArgs^  e);
+		void		B_VIEWER_STEP_Click(System::Object^  sender, System::EventArgs^  e);
 		void		B_SPEED_ValueChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_WIRE_VARIANCE_ValueChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_FALSE_ALARM_RATE_ValueChanged(System::Object^  sender, System::EventArgs^  e);
@@ -1341,7 +1453,7 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 		void		B_SCREEN_WIDTH_Scroll(System::Object^  sender, System::EventArgs^  e);
 		void		B_ROUTE_NEW_CheckedChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_SAVE_OBSTACLES_FILE_Click(System::Object^  sender, System::EventArgs^  e);
-		void		B_SAVE_DETECTIONS_FILE_Click(System::Object^  sender, System::EventArgs^  e);
+		void		B_SAVE_DETECTIONS_DIRECTORY_Click(System::Object^  sender, System::EventArgs^  e);
 		void		B_BROWSE_OBSTACLES_FILE_Click(System::Object^  sender, System::EventArgs^  e);
 		void		B_STEP_FORWARD_Click(System::Object^  sender, System::EventArgs^  e);
 		void		B_PLOT_DETECTIONS_CheckedChanged(System::Object^  sender, System::EventArgs^  e);
@@ -1351,11 +1463,13 @@ private: System::Windows::Forms::TextBox^  B_FILE_DETECTIONS_GENERATOR;
 		void		B_GPS_LAT_TextChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_GPS_LONG_TextChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_FILE_DETECTIONS_GENERATOR_TextChanged(System::Object^  sender, System::EventArgs^  e); 
+		void		B_LOAD_DETCTIONS_Click(System::Object^  sender, System::EventArgs^  e);
+		void		B_LOAD_MAP_IMAGE_Click(System::Object^  sender, System::EventArgs^  e);
 		// Added by Cogniteam
 		void		GroundTruthToObj(System::Collections::Generic::List<PointD>^ helicopter_route);
 
-		void		B_LOAD_DETCTIONS_Click(System::Object^  sender, System::EventArgs^  e);
-		void		B_LOAD_MAP_IMAGE_Click(System::Object^  sender, System::EventArgs^  e);
+
+
 
 };
 }

@@ -11,6 +11,19 @@ using namespace System::Windows::Forms;
 namespace ROD_OMR_V1
 {
 	// --------------------------------------------------
+	//  My_message
+	//  Alon Slapak 3/10/2014
+	// 	Description:	Put message on the GUI
+	// 	Reference: 
+	//	Input Value:	Message string
+	//  Return Value: 
+	// --------------------------------------------------
+	void MyForm::My_message(String^ message_string)
+	{
+		B_MESSAGE->Text = message_string;
+		B_MESSAGE->Refresh();
+	}
+	// --------------------------------------------------
 	//  MyForm  
 	//  Alon Slapak 13/2/2015
 	// 	Description:	Constructor
@@ -61,7 +74,10 @@ namespace ROD_OMR_V1
 		}
 		else
 		{
-			sprintf_s(INITIAL_data->Obstackes_file_name, "Enter obstacles file name...............");
+			sprintf_s(INITIAL_data->OBSTACLES_file_name, "Enter obstacles file name...............");
+			sprintf_s(INITIAL_data->EXPERIMENT_directory, "Enter EXPERIMENT directory...............");
+			sprintf_s(INITIAL_data->DETECTIONS_folder, "Enter DETECTIONS folder...............");
+			sprintf_s(INITIAL_data->MAP_image_file, "Enter MAP image file...............");
 			INITIAL_data->Variance_position_wires = 50;
 			INITIAL_data->False_alarm_rate = 1;
 			INITIAL_data->radar_range = 1500;
@@ -81,12 +97,13 @@ namespace ROD_OMR_V1
 		// --------------------------------------------------
 		//			Load true obstacles map (TOM)
 		// --------------------------------------------------
-		Obstacles_map_load(OBSTACLES_map_true, INITIAL_data->Obstackes_file_name);
+		Obstacles_map_load(OBSTACLES_map_true, INITIAL_data->OBSTACLES_file_name);
 		//-----------------------------------------
 		//	Initialize Helicopter route
 		//-----------------------------------------
 		Start_wire_from_mouse = false;
-		Flight_expeiment_initialized = false;
+		Experiment_initialized = false;
+		Viewer_initialized = false;
 		HELICOPTER_route_master.Helicopter_initial_angle = 0;
 		HELICOPTER_route_master.Helicopter_delta_angle = 0;
 		HELICOPTER_route_master.Helicopter_position = convert_Screen_to_UTM(PointF(SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 1));
@@ -104,7 +121,10 @@ namespace ROD_OMR_V1
 		B_ROUTE_REPEAT->Checked = !INITIAL_data->route_new;
 		double		scale = (double)B_SCREEN_WIDTH->Value / 10;
 		B_SCALE->Text = scale.ToString();
-		B_OBSTACLES_file->Text = gcnew String(INITIAL_data->Obstackes_file_name);
+		B_OBSTACLES_file->Text = gcnew String(INITIAL_data->OBSTACLES_file_name);
+		B_DETECTIONS_FOLDER->Text = gcnew String(INITIAL_data->DETECTIONS_folder);
+		B_FILE_MAP->Text = gcnew String(INITIAL_data->MAP_image_file);
+		B_EXPERIMENT_DIRECTORY->Text = gcnew String(INITIAL_data->EXPERIMENT_directory);
 		B_PLOT_DETECTIONS->Checked = INITIAL_data->show_detections;
 		B_MAX_ERROR_RANGE->Text = INITIAL_data->max_range_error_meter.ToString();
 		B_RELIABILITY_THRESHOLD->Text = INITIAL_data->reliability_threshold.ToString();
@@ -114,7 +134,7 @@ namespace ROD_OMR_V1
 		//-----------------------------------------
 		//		Init GUI - Viewer
 		//-----------------------------------------
-		B_FILE_TOM->Text = gcnew String(INITIAL_data->Obstackes_file_name);
+		B_FILE_TOM->Text = gcnew String(INITIAL_data->OBSTACLES_file_name);
 	}
 
 	// --------------------------------------------------
@@ -527,6 +547,34 @@ namespace ROD_OMR_V1
 	{
 		INITIAL_data->wire_segment_length_meter = System::Convert::ToInt32(B_WIRE_SEGMENT_LENGTH_METER->Value);
 	}
+
+	//// --------------------------------------------------
+	////  convert_Radar_to_Screen  
+	////  Alon Slapak 8/6/2015
+	//// 	Description:	Convert Radar-relative coordinates to Screen coordinates
+	//// 	Reference:		Note, the problem is that the 0,0 is the top-left on screen
+	////					and Y increases toward bottom edge
+	////  Input value:	RADAR coordinates
+	////  Return Value:	Screen coordinates
+	//// --------------------------------------------------
+	//PointF MyForm::convert_Radar_to_Screen(PointD Radar_coordinates, PointD Radar_position)
+	//{
+	//	PointF			Screen_coordinates;
+	//	PointD			cartesian_point;
+	//	float			Mega_meters_per_pixel = ((float)INITIAL_data->screen_width / 1000 / SCREEN_SIZE_X);
+	//	//--------------------------------------
+	//	//	Convert coordinates 
+	//	//--------------------------------------
+	//	cartesian_point = convert_Spherical_to_Cartesian(Radar_coordinates);
+	//	Screen_coordinates.X = (float)(cartesian_point.X - INITIAL_data->GPS_longitude) / Mega_meters_per_pixel;
+	//	Screen_coordinates.Y = (float)(cartesian_point.Y - INITIAL_data->GPS_latitude) / Mega_meters_per_pixel;
+	//	//--------------------------------------
+	//	//	Compensate for the opposite side of the (-600-->600, -500->500,...,0-->0) 
+	//	//--------------------------------------
+	//	Screen_coordinates.Y = -Screen_coordinates.Y;
+
+	//	return Screen_coordinates;
+	//}
 	// --------------------------------------------------
 	//  convert_UTM_to_Screen  
 	//  Alon Slapak 11/5/2015
@@ -549,7 +597,7 @@ namespace ROD_OMR_V1
 		//	Compensate for the opposite side of the (-600-->600, -500->500,...,0-->0) 
 		//--------------------------------------
 		Screen_coordinates.Y = -Screen_coordinates.Y;
-		
+
 		return Screen_coordinates;
 	}
 	// --------------------------------------------------
@@ -570,7 +618,7 @@ namespace ROD_OMR_V1
 		//--------------------------------------
 		UTM_coordinates.X = Screen_coordinates.X * Mega_meters_per_pixel + INITIAL_data->GPS_longitude;
 		UTM_coordinates.Y = -Screen_coordinates.Y * Mega_meters_per_pixel + INITIAL_data->GPS_latitude;
-		
+
 		return UTM_coordinates;
 	}
 	// --------------------------------------------------
@@ -650,8 +698,8 @@ namespace ROD_OMR_V1
 	double MyForm::Distance_between_point_and_line(PointD P, PointD L1, PointD L2)
 	{
 		double			denominator, numerator;
-		numerator	= abs((L2.X-L1.X)*(L1.Y-P.Y) - (L1.X-P.X)*(L2.Y-L1.Y));
-		denominator = Distance_between_points(L1,L2);
+		numerator = abs((L2.X - L1.X)*(L1.Y - P.Y) - (L1.X - P.X)*(L2.Y - L1.Y));
+		denominator = Distance_between_points(L1, L2);
 		return	numerator / denominator;
 	}
 
@@ -700,9 +748,7 @@ namespace ROD_OMR_V1
 		// --------------------------------------------------
 		target_range = sqrt(pow(Target.X - Radar.X, 2) + pow(Target.Y - Radar.Y, 2)) * 1e6;
 		target_angle = atan2((Target.X - Radar.X), (Target.Y - Radar.Y)) * 180.0 / PI;
-
 		temp_range = target_range * target_angle;
-		cout << temp_range;
 		// --------------------------------------------------
 		//	Check if in FOV
 		// --------------------------------------------------
@@ -731,21 +777,80 @@ namespace ROD_OMR_V1
 		delete Panel_graphics;
 		Obstacles_map_plot(OBSTACLES_map_true, COLOR_TRUE);
 	}
-	
 	// --------------------------------------------------
-	//  Init_flight_experiment  
+	//  Experiment_Save_def_file
+	//  Alon Slapak		8/1/2015
+	// 	Description:	Save experiemtn data to file in experiment directory
+	// 	Reference:		
+	//	Input Value:	
+	//  Return Value:	
+	// --------------------------------------------------
+	int MyForm::Experiment_Save_def_file(char*	experiment_path)
+	{
+		char			file_name[MAX_STRING_LENGTH];
+		fstream			file_handle;
+		SYSTEMTIME		mytime;
+
+		GetLocalTime(&mytime);
+		// --------------------------------------------------
+		//		Experimnent definitions --> File
+		// --------------------------------------------------
+		sprintf_s(file_name, "%s\\%s", experiment_path, EXPERIMENT_DEF_FILE);
+		file_handle.open(file_name, ios::out);
+		if (file_handle.fail())
+		{
+			My_message("Error opening experiment data file for write.");
+			return FAULT;
+		}
+		file_handle << "Helicopter_Speed" << '\t' << INITIAL_data->Helicopter_Speed << '\n';
+		file_handle << "Variance_position_wires" << '\t' << INITIAL_data->Variance_position_wires << '\n';
+		file_handle << "False_alarm_rate" << '\t' << INITIAL_data->False_alarm_rate << '\n';
+		file_handle << "radar_range" << '\t' << INITIAL_data->radar_range << '\n';
+		file_handle << "radar_FOV" << '\t' << INITIAL_data->radar_FOV << '\n';
+		file_handle << "radar_refresh_time" << '\t' << INITIAL_data->radar_refresh_time << '\n';
+		file_handle << "screen_width" << '\t' << INITIAL_data->screen_width << '\n';
+		file_handle << "route_new" << '\t' << INITIAL_data->route_new << '\n';
+		file_handle << "show_detections" << '\t' << INITIAL_data->show_detections << '\n';
+		file_handle << "OBSTACLES_file_name" << '\t' << INITIAL_data->OBSTACLES_file_name << '\n';
+		file_handle << "EXPERIMENT_directory" << '\t' << INITIAL_data->EXPERIMENT_directory << '\n';
+		file_handle << "max_range_error_meter" << '\t' << INITIAL_data->max_range_error_meter << '\n';
+		file_handle << "reliability_threshold" << '\t' << INITIAL_data->reliability_threshold << '\n';
+		file_handle << "wire_segment_length_meter" << '\t' << INITIAL_data->wire_segment_length_meter << '\n';
+		file_handle << "GPS_latitude" << '\t' << INITIAL_data->GPS_latitude << '\n';
+		file_handle << "GPS_longitude" << '\t' << INITIAL_data->GPS_longitude << '\n';
+		// --------------------------------------------------
+		//		Closing
+		// --------------------------------------------------
+		file_handle.close();
+		return GOOD;
+	}
+	// --------------------------------------------------
+	//  Experiment_init  
 	//  Alon Slapak 10/4/2015
 	// 	Description:	Initialize flight experiment
 	// 	Reference: 
 	//  Input value:
 	//  Return Value: 
 	// --------------------------------------------------
-	void MyForm::Init_flight_experiment()
+	int MyForm::Experiment_init()
 	{
+		char		experiment_path[MAX_STRING_LENGTH];
+
 		// Added by Cogniteam
 		helicopter_routing = gcnew System::Collections::Generic::List<PointD>();
+		//----------------------------------------------
+		//   Get the Experiment Directory
+		//----------------------------------------------
+		if (Experiment_create_folder(experiment_path) == FAULT)
+		{
+			return FAULT;
+		}
 		//---------------------------------------------------
-		//		Prepare screen
+		//---------------------------------------------------
+		//
+		//			Prepare screen
+		//
+		//---------------------------------------------------
 		//---------------------------------------------------
 		Init_screen();
 		//---------------------------------------------------
@@ -770,32 +875,222 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		OBSTACLES_map_estimated.number_of_obstacles = 0;
 		//---------------------------------------------------
-		//		Open file for serialization Targets
-		//---------------------------------------------------
-		Recording_file_handle = new fstream(TARGETS_FILE_NAME, ios::out | ios::binary);
-		//---------------------------------------------------
 		//		Avoid initializing again
 		//---------------------------------------------------
-		Flight_expeiment_initialized = true;
+		Experiment_initialized = true;
+		return GOOD;
 	}
 	// --------------------------------------------------
-	//  FInalize_flight_experiment  
+	//  Experiment_finalize  
 	//  Alon Slapak 10/4/2015
 	// 	Description:	Finalize flight experiment
 	// 	Reference: 
 	//  Input value:
 	//  Return Value: 
 	// --------------------------------------------------
-	void MyForm::FInalize_flight_experiment()
+	void MyForm::Experiment_finalize()
 	{
 		//---------------------------------------------------
 		//		Closure
 		//---------------------------------------------------
 		Recording_file_handle->close();
 		delete Recording_file_handle;
-		Flight_expeiment_initialized = false;
+		Experiment_initialized = false;
 		// Added by Cogniteam
 		GroundTruthToObj(helicopter_routing);
+	}
+	// --------------------------------------------------
+	//  Viewer_init  
+	//  Alon Slapak 8/6/2015
+	// 	Description:	Initialize viewer
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	int MyForm::Viewer_init()
+	{
+		char		experiment_file[MAX_STRING_LENGTH];
+		//----------------------------------------------
+		//   Check the experiment folder validity
+		//----------------------------------------------
+		if (System::IO::Directory::Exists(gcnew String(INITIAL_data->DETECTIONS_folder)) == false)
+		{
+			//----------------------------------------------------
+			//		Message box  
+			//----------------------------------------------------
+			marshal_context ^ context = gcnew marshal_context();
+			if (MessageBox::Show(this, gcnew String("Error: DETECTIONS directory does not exist."), "OWR Debriefing", MessageBoxButtons::OKCancel,
+				MessageBoxIcon::Asterisk) == System::Windows::Forms::DialogResult::Cancel)
+			{
+				return FAULT;
+			}
+		}		
+		//--------------------------------------
+		//			Open the experiment detection file
+		//--------------------------------------
+		sprintf_s(experiment_file, "%s\\%s", INITIAL_data->DETECTIONS_folder, EXPERIMENT_DETECTIONS_FILE);
+		Recording_file_handle = new fstream(experiment_file, ios::in | ios::binary);
+		if (Recording_file_handle->fail())
+		{
+			My_message("Error opening file for viewing.");
+			return FAULT;
+		}
+		//---------------------------------------------------
+		//			Prepare screen
+		//---------------------------------------------------
+		Init_screen();
+		//---------------------------------------------------
+		//		Init estimation error function
+		//---------------------------------------------------
+		Error_function_old_counter = 0;
+		//---------------------------------------------------
+		//		Initialize estimated obstacle map
+		//---------------------------------------------------
+		OBSTACLES_map_estimated.number_of_obstacles = 0;
+		//---------------------------------------------------
+		//		Avoid initializing again
+		//---------------------------------------------------
+		Viewer_initialized = true;
+		return GOOD;
+	}
+	// --------------------------------------------------
+	//  Viewer_finalize  
+	//  Alon Slapak 8/6/2015
+	// 	Description:	finalize viewer
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	int MyForm::Viewer_finalize()
+	{
+		//---------------------------------------------------
+		//		Closure
+		//---------------------------------------------------
+		Recording_file_handle->close();
+		delete Recording_file_handle;
+		Viewer_initialized = false;
+		return GOOD;
+	}
+	// --------------------------------------------------
+	//  Viewer_radar_operation  
+	//  Alon Slapak 8/6/2015
+	// 	Description:	Show a single radar operation from file
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	int MyForm::Viewer_radar_operation()
+	{
+		T_Target			detection;
+		Pen^				Pen_helicopter = gcnew Pen(Color::Red);
+		Pen^				Pen_target_pylon = gcnew Pen(Color::Blue);
+		Pen^				Pen_target_wire = gcnew Pen(Color::Pink);
+		Graphics^			panel_graphics = B_PANEL->CreateGraphics();
+		PointF				helicopter_Screen;
+		PointD				detection_meters;
+		PointD				detection_Screen;
+		PointD				Min = convert_Screen_to_UTM(PointF(0, SCREEN_SIZE_Y));
+		PointD				Max = convert_Screen_to_UTM(PointF(SCREEN_SIZE_X, 0));
+
+		float				Mega_meters_per_pixel = ((float)INITIAL_data->screen_width / 1000 / SCREEN_SIZE_X);
+		//---------------------------------------------------
+		//		Read target
+		//---------------------------------------------------
+		pin_ptr<T_Target> pinnedPtr = &detection;
+		Recording_file_handle->read((char*)(pinnedPtr), sizeof(T_Target));
+		//---------------------------------------------------
+		//		Calculate helicopter position
+		//---------------------------------------------------	
+		helicopter_Screen = convert_UTM_to_Screen(PointD(detection.radar_lon, detection.radar_lat));
+		if ((helicopter_Screen.X > 0) && (helicopter_Screen.X < SCREEN_SIZE_X) && (helicopter_Screen.Y > 0) && (helicopter_Screen.Y < SCREEN_SIZE_Y))
+		{
+			//---------------------------------------------------
+			//		Plot helicopter
+			//---------------------------------------------------	
+			panel_graphics->DrawRectangle(Pen_helicopter, (int)helicopter_Screen.X - 1, (int)helicopter_Screen.Y - 1, 3, 3);
+			if (detection.target_reliability != -1)
+			{
+				//---------------------------------------------------
+				//		Calculate target position
+				//---------------------------------------------------	
+				detection_meters = convert_Spherical_to_Cartesian(PointD(detection.target_range, detection.target_azimuth));
+				detection_Screen.X = helicopter_Screen.X + detection_meters.Y / Mega_meters_per_pixel / 1e6;
+				detection_Screen.Y = helicopter_Screen.Y - detection_meters.X / Mega_meters_per_pixel / 1e6;
+				//---------------------------------------------------
+				//		Plot target
+				//---------------------------------------------------	
+				if (abs(detection.target_polarization) < PI / 4)
+				{
+					panel_graphics->DrawRectangle(Pen_target_wire, (int)detection_Screen.X - 6, (int)detection_Screen.Y - 6, 13, 13);
+				}
+				else
+				{
+					panel_graphics->DrawRectangle(Pen_target_pylon, (int)detection_Screen.X - 6, (int)detection_Screen.Y - 6, 13, 13);
+				}
+			}
+		}
+		return GOOD;
+	}
+	// --------------------------------------------------
+	//  B_VIEWER_PLAY_Click  
+	//  Alon Slapak 8/6/2015
+	// 	Description:	Play experiment file 
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	void MyForm::B_VIEWER_PLAY_Click(System::Object^  sender, System::EventArgs^  e)
+	{
+		//---------------------------------------------------
+		//		Init experiment (if not already initizalized)
+		//---------------------------------------------------
+		if (Viewer_initialized == false)
+		{
+			Viewer_init();
+		}
+		//---------------------------------------------------
+		//		Loop of reading experiment from file
+		//---------------------------------------------------
+		while (!Recording_file_handle->eof())
+		{
+			Viewer_radar_operation();
+		}
+		//---------------------------------------------------
+		//		Closure
+		//---------------------------------------------------
+		Viewer_finalize();
+	}
+	// --------------------------------------------------
+	//  B_VIEWER_STEP_Click  
+	//  Alon Slapak 8/6/2015
+	// 	Description:	step forward experiment file 
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	void MyForm::B_VIEWER_STEP_Click(System::Object^  sender, System::EventArgs^  e)
+	{
+		//---------------------------------------------------
+		//		Init experiment (if not already initizalized)
+		//---------------------------------------------------
+		if (Viewer_initialized == false)
+		{
+			Viewer_init();
+		}
+		//---------------------------------------------------
+		//		Loop of the radar detection across the route
+		//---------------------------------------------------
+		if (!Recording_file_handle->eof())
+		{
+			Viewer_radar_operation();
+		}
+		else
+		{
+			//---------------------------------------------------
+			//		Closure
+			//---------------------------------------------------
+			Viewer_finalize();
+		}
 	}
 	// --------------------------------------------------
 	//  B_FLY_Click  
@@ -816,23 +1111,23 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Init experiment (if not already initizalized)
 		//---------------------------------------------------
-		if (Flight_expeiment_initialized == false)
+		if (Experiment_initialized == false)
 		{
-			Init_flight_experiment();
+			Experiment_init();
 		}
 		//---------------------------------------------------
 		//		Loop of the radar detection across the route
 		//---------------------------------------------------
 		while ((HELICOPTER_route.Helicopter_position.X > Min.X) && (HELICOPTER_route.Helicopter_position.X < Max.X) && (HELICOPTER_route.Helicopter_position.Y > Min.Y) && (HELICOPTER_route.Helicopter_position.Y < Max.Y))
 		{
-			Simulate_radar_operation();
+			Experiment_radar_operation();
 			//---------------------------------------------------
 			//		Move to next Point
 			//---------------------------------------------------
 			for (i = 0; i < (int)(INITIAL_data->Helicopter_Speed / INITIAL_data->radar_refresh_time); i++)
 			{
-				HELICOPTER_route.Helicopter_position.X += (double)(sin(HELICOPTER_route.Helicopter_angle * PI / 180) /1e6);
-				HELICOPTER_route.Helicopter_position.Y += (double)(cos(HELICOPTER_route.Helicopter_angle * PI / 180) /1e6);
+				HELICOPTER_route.Helicopter_position.X += (double)(sin(HELICOPTER_route.Helicopter_angle * PI / 180) / 1e6);
+				HELICOPTER_route.Helicopter_position.Y += (double)(cos(HELICOPTER_route.Helicopter_angle * PI / 180) / 1e6);
 				HELICOPTER_route.Helicopter_angle += HELICOPTER_route.Helicopter_delta_angle;
 			}
 			HELICOPTER_route.time_stamp += (float)(1.0 / INITIAL_data->radar_refresh_time);
@@ -840,7 +1135,7 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Closure
 		//---------------------------------------------------
-		FInalize_flight_experiment();
+		Experiment_finalize();
 	}
 	// --------------------------------------------------
 	//  B_STEP_FORWARD_Click  
@@ -861,16 +1156,16 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Init experiment (if not already initizalized)
 		//---------------------------------------------------
-		if (Flight_expeiment_initialized == false)
+		if (Experiment_initialized == false)
 		{
-			Init_flight_experiment();
+			Experiment_init();
 		}
 		//---------------------------------------------------
 		//		Loop of the radar detection across the route
 		//---------------------------------------------------
 		if ((HELICOPTER_route.Helicopter_position.X > Min.X) && (HELICOPTER_route.Helicopter_position.X < Max.X) && (HELICOPTER_route.Helicopter_position.Y > Min.Y) && (HELICOPTER_route.Helicopter_position.Y < Max.Y))
 		{
-			Simulate_radar_operation();
+			Experiment_radar_operation();
 			//---------------------------------------------------
 			//		Move to next Point
 			//---------------------------------------------------
@@ -887,19 +1182,19 @@ namespace ROD_OMR_V1
 			//---------------------------------------------------
 			//		Closure
 			//---------------------------------------------------
-			FInalize_flight_experiment();
+			Experiment_finalize();
 			return;
-		}	
+		}
 	}
 	// --------------------------------------------------
-	//  Simulate_radar_operation  
+	//  Experiment_radar_operation  
 	//  Alon Slapak 10/4/2015
 	// 	Description:	Move the helicopter one step forward to the 
 	// 	Reference: 
 	//  Input value:
 	//  Return Value: 
 	// --------------------------------------------------
-	void MyForm::Simulate_radar_operation()
+	void MyForm::Experiment_radar_operation()
 	{
 		int					i;
 		float				False_alarm_draw;
@@ -910,6 +1205,7 @@ namespace ROD_OMR_V1
 		PointD				noise_UTM;
 		PointD				estimated_target_UTM;
 		PointF				estimated_target_Screen;
+		PointD				Sperical_point;
 		PointD				PNI;
 		PointF				helicopter_Screen;
 		T_Target			Target;
@@ -927,8 +1223,8 @@ namespace ROD_OMR_V1
 		//		Helicopter data --> target struct
 		//---------------------------------------------------
 		Target.time = HELICOPTER_route.time_stamp;								// [sec, 0 is a week start]
-		Target.radar_lat = HELICOPTER_route.Helicopter_position.X;				// [Longitude coordiantes]
-		Target.radar_lon = HELICOPTER_route.Helicopter_position.Y;				// [Latitude coordinates]
+		Target.radar_lon = HELICOPTER_route.Helicopter_position.X;				// [Longitude coordiantes]
+		Target.radar_lat = HELICOPTER_route.Helicopter_position.Y;				// [Latitude coordinates]
 		Target.radar_alt = 100;													// [meters]
 		Target.radar_att_roll;													// [deg, clockwise, 0 is North direction]
 		Target.radar_att_pitch;													// [deg, clockwise, 0 is North direction]
@@ -964,14 +1260,14 @@ namespace ROD_OMR_V1
 					//---------------------------------------------------
 					noise_UTM.X = (float)((rand() % 100) - 50) / 50 * INITIAL_data->Variance_position_wires / 1e6;
 					noise_UTM.Y = (float)((rand() % 100) - 50) / 50 * INITIAL_data->Variance_position_wires / 1e6;
-					
+
 					estimated_target_UTM.X = OBSTACLES_map_true.Obstacles[i].Point_1.X + noise_UTM.X;
 					estimated_target_UTM.Y = OBSTACLES_map_true.Obstacles[i].Point_1.Y + noise_UTM.Y;
 					//---------------------------------------------------
 					//		Update detections array
 					//---------------------------------------------------
 					Target.target_reliability = 50;					// [0%:100%]
-					PointD	Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
+					Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
 					Target.target_range = Sperical_point.X;					// [meters from radar]
 					Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
 					Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
@@ -1014,14 +1310,14 @@ namespace ROD_OMR_V1
 						//---------------------------------------------------
 						noise_UTM.X = (float)((rand() % 100) - 50) / 50 * INITIAL_data->Variance_position_wires / 1e6;
 						noise_UTM.Y = (float)((rand() % 100) - 50) / 50 * INITIAL_data->Variance_position_wires / 1e6;
-						
+
 						estimated_target_UTM.X = PNI.X + noise_UTM.X;
 						estimated_target_UTM.Y = PNI.Y + noise_UTM.Y;
 						//---------------------------------------------------
 						//		Update detections array
 						//---------------------------------------------------
 						Target.target_reliability = 50;					// [0%:100%]
-						PointD	Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
+						Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
 						Target.target_range = Sperical_point.X;					// [meters from radar]
 						Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
 						Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
@@ -1061,7 +1357,7 @@ namespace ROD_OMR_V1
 			//		Update detections array
 			//---------------------------------------------------
 			Target.target_reliability = 50;					// [0%:100%]
-			PointD	Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
+			Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
 			Target.target_range = Sperical_point.X;					// [meters from radar]
 			Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
 			Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
@@ -1081,10 +1377,19 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Save detections in file
 		//---------------------------------------------------
-		for (i = 0; i < Radar_detections_counter; i++)
+		if (Radar_detections_counter == 0)		// save even if there is no detection for debriefing
 		{
-			pin_ptr<T_Target> pinnedPtr = &Radar_detections_array[i];
+			Target.target_reliability = -1;
+			pin_ptr<T_Target> pinnedPtr = &Target;
 			Recording_file_handle->write((char*)(pinnedPtr), sizeof(T_Target));
+		}
+		else
+		{
+			for (i = 0; i < Radar_detections_counter; i++)
+			{
+				pin_ptr<T_Target> pinnedPtr = &Radar_detections_array[i];
+				Recording_file_handle->write((char*)(pinnedPtr), sizeof(T_Target));
+			}
 		}
 		//---------------------------------------------------
 		//		Clean up
@@ -1172,7 +1477,7 @@ namespace ROD_OMR_V1
 						target.X = HELICOPTER_route.Helicopter_position.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
 						target.Y = HELICOPTER_route.Helicopter_position.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
 
-						if (Distance_between_point_and_line(target, OBSTACLES_map_estimated.Obstacles[k].Point_1, OBSTACLES_map_estimated.Obstacles[k].Point_2)< INITIAL_data->max_range_error_meter)
+						if (Distance_between_point_and_line(target, OBSTACLES_map_estimated.Obstacles[k].Point_1, OBSTACLES_map_estimated.Obstacles[k].Point_2) < INITIAL_data->max_range_error_meter)
 						{
 							flag_wire_detected = true;
 							OBSTACLES_map_estimated.Obstacles[k].Obstacle_reliability = OBSTACLES_map_estimated.Obstacles[k].Obstacle_reliability / 100 * INITIAL_data->reliability_threshold + (100 - (double)INITIAL_data->reliability_threshold);
@@ -1205,20 +1510,20 @@ namespace ROD_OMR_V1
 					//-----------------------------------------
 					//		finde the closest pylons
 					//-----------------------------------------
-				/*	for (k = 0; k < OBSTACLES_map_estimated.number_of_obstacles; k++)
-					{
+					/*	for (k = 0; k < OBSTACLES_map_estimated.number_of_obstacles; k++)
+						{
 						if (OBSTACLES_map_estimated.Obstacles[k].Obstacle_type == OBSTACLE_PYLON)
 						{
-							if (Distance_between_points(OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1, OBSTACLES_map_estimated.Obstacles[k].Point_1) * meters_per_pixel < INITIAL_data->max_range_error_meter)
-							{
-								OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1 = OBSTACLES_map_estimated.Obstacles[k].Point_1;
-							}
-							if (Distance_between_points(OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_2, OBSTACLES_map_estimated.Obstacles[k].Point_1) * meters_per_pixel < INITIAL_data->max_range_error_meter)
-							{
-								OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_2 = OBSTACLES_map_estimated.Obstacles[k].Point_1;
-							}
+						if (Distance_between_points(OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1, OBSTACLES_map_estimated.Obstacles[k].Point_1) * meters_per_pixel < INITIAL_data->max_range_error_meter)
+						{
+						OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1 = OBSTACLES_map_estimated.Obstacles[k].Point_1;
 						}
-					}*/
+						if (Distance_between_points(OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_2, OBSTACLES_map_estimated.Obstacles[k].Point_1) * meters_per_pixel < INITIAL_data->max_range_error_meter)
+						{
+						OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_2 = OBSTACLES_map_estimated.Obstacles[k].Point_1;
+						}
+						}
+						}*/
 
 					//-----------------------------------------
 					//		Reliability
@@ -1271,7 +1576,7 @@ namespace ROD_OMR_V1
 					//	Find minimum distance from all true pylons
 					// --------------------------------------------------
 					minimum_range = 10000000;
-				
+
 					for (m = 0; m < OBSTACLES_map_true.number_of_obstacles; m++)
 					{
 						if (OBSTACLES_map_true.Obstacles[m].Obstacle_type == OBSTACLE_PYLON)
@@ -1306,7 +1611,7 @@ namespace ROD_OMR_V1
 		else
 		{
 			estimation_error_FA = estimation_error_FA / estimation_error_counter;
-		}	
+		}
 		// --------------------------------------------------
 		//	Calculate error function: PD part
 		// --------------------------------------------------
@@ -1366,7 +1671,7 @@ namespace ROD_OMR_V1
 			Error_function_array[i + 1] = (estimation_error_PD * RISK_PD + estimation_error_FA * RISK_FA) / (RISK_PD + RISK_FA);
 			Error_function_old_counter = estimation_error_index;
 		}
-		
+
 		// --------------------------------------------------
 		//	Update error graph
 		// --------------------------------------------------
@@ -1377,18 +1682,110 @@ namespace ROD_OMR_V1
 		}
 		B_ERROR_FUNCTION->Refresh();
 	}
-
 	// --------------------------------------------------
-	//  B_SAVE_DETECTIONS_FILE_Click  
-	//  Alon Slapak 2/6/2015
-	// 	Description:	Save detections file 
+	//  Experiment_create_folder
+	//  Ronen Globinsky 3/3/2015
+	// 	Description:	Create a folder to the experiment
+	// 	Reference: 
+	//	Input Value:	pointer to experiment dirctory (for return)
+	//  Return Value:	GOOD/FAULT
+	// --------------------------------------------------
+	int MyForm::Experiment_create_folder(char* experiment_path)
+	{
+		char						temp_string_1[MAX_STRING_LENGTH];
+		char						temp_string_2[MAX_STRING_LENGTH];
+		fstream						file_handle;
+		int							experiment_number;
+		SYSTEMTIME					mytime;
+		//----------------------------------------------
+		//   Check the experiment folder validity
+		//----------------------------------------------
+		if (System::IO::Directory::Exists(gcnew String(INITIAL_data->EXPERIMENT_directory)) == false)
+		{
+			//----------------------------------------------------
+			//		Message box  
+			//----------------------------------------------------
+			marshal_context ^ context = gcnew marshal_context();
+			if (MessageBox::Show(this, gcnew String("Error: LOG directory does not exist."), "OWR Debriefing", MessageBoxButtons::OKCancel,
+				MessageBoxIcon::Asterisk) == System::Windows::Forms::DialogResult::Cancel)
+			{
+				return FAULT;
+			}
+		}
+		//----------------------------------------------
+		//		open Experiment Number file
+		//----------------------------------------------
+		sprintf_s(temp_string_1, "%s\\%s", INITIAL_data->EXPERIMENT_directory, EXPERIMENT_NUMBER_FILE);
+		file_handle.open(temp_string_1, ios::in);
+		if (file_handle)
+		{
+			file_handle >> temp_string_2;
+			experiment_number = atoi(temp_string_2);
+			experiment_number = experiment_number + 1;
+			file_handle.close();
+		}
+		else
+		{
+			experiment_number = 1;
+		}
+		file_handle.open(temp_string_1, ios::out);
+		if (file_handle.fail())
+		{
+			My_message("Error updating experiment number file.");
+			return FAULT;
+		}
+		file_handle << experiment_number << std::endl;
+		file_handle.close();
+		//------------------------------------------------
+		// Create Experiment directory
+		//------------------------------------------------
+		GetLocalTime(&mytime);
+		sprintf_s(experiment_path, MAX_STRING_LENGTH, "%s\\Exp_%d_%d-%d-%d_%d-%d-%d", INITIAL_data->EXPERIMENT_directory, experiment_number, mytime.wYear, mytime.wMonth, mytime.wDay, mytime.wHour, mytime.wMinute, mytime.wSecond);
+		int err_Makedir = CreateDirectoryA(experiment_path, NULL);
+		if (GetLastError() == ERROR_PATH_NOT_FOUND)
+		{
+			My_message("Error path for results directory not found.");
+			return FAULT;
+		}
+		//------------------------------------------------
+		// Create Experiment directory
+		//------------------------------------------------
+		if (Experiment_Save_def_file(experiment_path) == FAULT)
+		{
+			return FAULT;
+		}
+		//---------------------------------------------------
+		//		Open file for serialization Targets
+		//---------------------------------------------------
+		sprintf_s(temp_string_1, "%s\\%s", experiment_path, EXPERIMENT_DETECTIONS_FILE);
+		Recording_file_handle = new fstream(temp_string_1, ios::out | ios::binary);
+		if (Recording_file_handle->fail())
+		{
+			My_message("Error opening file for recording.");
+			return FAULT;
+		}
+		return GOOD;
+	}
+	// --------------------------------------------------
+	//  B_SAVE_DETECTIONS_DIRECTORY_Click  
+	//  Alon Slapak 3/6/2015
+	// 	Description:	Select directory to save detections 
 	// 	Reference: 
 	//  Input value:
 	//  Return Value: 
 	// --------------------------------------------------
-	void MyForm::B_SAVE_DETECTIONS_FILE_Click(System::Object^  sender, System::EventArgs^  e)
+	void MyForm::B_SAVE_DETECTIONS_DIRECTORY_Click(System::Object^  sender, System::EventArgs^  e)
 	{
-
+		B_BROWSE_DIR->ShowDialog();
+		//--------------------------------------
+		//			Put value in ANALYSE_fields structure's field
+		//--------------------------------------
+		marshal_context ^ context = gcnew marshal_context();
+		sprintf_s(INITIAL_data->EXPERIMENT_directory, context->marshal_as<const char*>(B_BROWSE_DIR->SelectedPath));
+		//--------------------------------------
+		//			Put value in TEXTBOX
+		//--------------------------------------
+		this->B_EXPERIMENT_DIRECTORY->Text = gcnew String(INITIAL_data->EXPERIMENT_directory);
 	}
 	// --------------------------------------------------
 	//  B_SAVE_OBSTACLES_FILE_Click  
@@ -1408,11 +1805,11 @@ namespace ROD_OMR_V1
 		B_SAVE_OBSTACLES_FILE_DIALOGE->ShowDialog();
 		B_OBSTACLES_file->Text = B_SAVE_OBSTACLES_FILE_DIALOGE->FileName;
 		marshal_context ^ context = gcnew marshal_context();
-		sprintf_s(INITIAL_data->Obstackes_file_name, context->marshal_as<const char*>(B_SAVE_OBSTACLES_FILE_DIALOGE->FileName));
+		sprintf_s(INITIAL_data->OBSTACLES_file_name, context->marshal_as<const char*>(B_SAVE_OBSTACLES_FILE_DIALOGE->FileName));
 		// --------------------------------------------------
 		//			save file
 		// --------------------------------------------------
-		file_stream.open(INITIAL_data->Obstackes_file_name, std::ios_base::out);
+		file_stream.open(INITIAL_data->OBSTACLES_file_name, std::ios_base::out);
 		if (file_stream.is_open())
 		{
 			file_stream << OBSTACLES_map_true.number_of_obstacles << '\n';
@@ -1455,11 +1852,11 @@ namespace ROD_OMR_V1
 		B_OPEN_OBSTACLES_FILE->ShowDialog();
 		B_OBSTACLES_file->Text = B_OPEN_OBSTACLES_FILE->FileName;
 		marshal_context ^ context = gcnew marshal_context();
-		sprintf_s(INITIAL_data->Obstackes_file_name, context->marshal_as<const char*>(B_OPEN_OBSTACLES_FILE->FileName));
+		sprintf_s(INITIAL_data->OBSTACLES_file_name, context->marshal_as<const char*>(B_OPEN_OBSTACLES_FILE->FileName));
 		// --------------------------------------------------
 		//			Load file
 		// --------------------------------------------------
-		Obstacles_map_load(OBSTACLES_map_true, INITIAL_data->Obstackes_file_name);
+		Obstacles_map_load(OBSTACLES_map_true, INITIAL_data->OBSTACLES_file_name);
 		// --------------------------------------------------
 		//			Plot data
 		// --------------------------------------------------
@@ -1511,65 +1908,13 @@ namespace ROD_OMR_V1
 	// --------------------------------------------------
 	void MyForm::B_LOAD_DETCTIONS_Click(System::Object^  sender, System::EventArgs^  e)
 	{
-		T_Target			detection;
-		Pen^				Pen_helicopter = gcnew Pen(Color::Red);
-		Pen^				Pen_target_pylon = gcnew Pen(Color::Blue);
-		Pen^				Pen_target_wire = gcnew Pen(Color::Pink);
-		Graphics^			panel_graphics = B_PANEL->CreateGraphics();
-		PointF				helicopter_Screen;
-		PointD				detection_Screen;
-		PointD				Min = convert_Screen_to_UTM(PointF(0, SCREEN_SIZE_Y));
-		PointD				Max = convert_Screen_to_UTM(PointF(SCREEN_SIZE_X, 0));
-		//---------------------------------------------------
-		//		Open file for serialization Targets
-		//---------------------------------------------------
-		Recording_file_handle = new fstream(TARGETS_FILE_NAME, ios::in | ios::binary);
-		//---------------------------------------------------
-		//		Loop of the radar detection across the route
-		//---------------------------------------------------
-		while (!Recording_file_handle->eof())
-		{
-			//---------------------------------------------------
-			//		Read target
-			//---------------------------------------------------
-			pin_ptr<T_Target> pinnedPtr = &detection;
-			Recording_file_handle->read((char*)(pinnedPtr),sizeof(T_Target));
-			//---------------------------------------------------
-			//		Calculate helicopter position
-			//---------------------------------------------------	
-			helicopter_Screen = convert_UTM_to_Screen(PointD(detection.radar_lon - INITIAL_data->GPS_longitude, detection.radar_lat - INITIAL_data->GPS_latitude));
-			if ((helicopter_Screen.X > Min.X) && (helicopter_Screen.X < Max.X) && (helicopter_Screen.Y > Min.Y) && (helicopter_Screen.Y < Max.Y))
-			{
-				//---------------------------------------------------
-				//		Plot helicopter
-				//---------------------------------------------------	
-				panel_graphics->DrawRectangle(Pen_helicopter, (int)helicopter_Screen.X - 1, (int)helicopter_Screen.Y - 1, 3, 3);
-				//---------------------------------------------------
-				//		Calculate target position
-				//---------------------------------------------------	
-				detection_Screen = convert_Spherical_to_Cartesian(PointD(detection.target_range, detection.target_azimuth));
-				detection_Screen.X += helicopter_Screen.X;
-				detection_Screen.Y += helicopter_Screen.Y;
-				//---------------------------------------------------
-				//		Plot target
-				//---------------------------------------------------	
-				if (abs(detection.target_polarization) < PI / 4)
-				{
-					panel_graphics->DrawRectangle(Pen_target_wire, (int)detection_Screen.X - 6, (int)detection_Screen.Y - 6, 13, 13);
-				}
-				else
-				{
-					panel_graphics->DrawRectangle(Pen_target_pylon, (int)detection_Screen.X - 6, (int)detection_Screen.Y - 6, 13, 13);
-				}
-			}
-		}
-		//---------------------------------------------------
-		//		Closure
-		//---------------------------------------------------
-		Recording_file_handle->close();
-		delete Recording_file_handle;
-		delete panel_graphics;
-		return;
+		//--------------------------------------
+		//			Put value in ANALYSE_fields structure's field
+		//--------------------------------------
+		B_BROWSE_DIR->ShowDialog();
+		marshal_context ^ context = gcnew marshal_context();
+		sprintf_s(INITIAL_data->DETECTIONS_folder, context->marshal_as<const char*>(B_BROWSE_DIR->SelectedPath));
+		this->B_DETECTIONS_FOLDER->Text = B_BROWSE_DIR->SelectedPath;
 	}
 	// --------------------------------------------------
 	//  B_LOAD_MAP_IMAGE_Click  
@@ -1621,14 +1966,14 @@ namespace ROD_OMR_V1
 		out << LINE_TYPE << " " << OBSTACLES_map_true.Obstacles[0].number_of_points << std::endl;
 		for (int p = 0; p < OBSTACLES_map_true.; p++)
 		{
-			out << ((OBSTACLES_map_true.Obstacles[0].Point_1.X - helicopter_pos_X) * meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - OBSTACLES_map_true.Obstacles[0].Array_points[p].Y) * meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_POWERLINE << std::endl;
+		out << ((OBSTACLES_map_true.Obstacles[0].Point_1.X - helicopter_pos_X) * meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - OBSTACLES_map_true.Obstacles[0].Array_points[p].Y) * meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_POWERLINE << std::endl;
 		}
 		out << LINE_TYPE << " " << helicopter_route->Count << std::endl;
 		for (int p = 0; p < helicopter_route->Count; p++)
-			out << ((helicopter_route[p].X - helicopter_pos_X)*meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - helicopter_route[p].Y)*meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_HELICOPTER << std::endl;
+		out << ((helicopter_route[p].X - helicopter_pos_X)*meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - helicopter_route[p].Y)*meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_HELICOPTER << std::endl;
 		out << POINT_TYPE << " " << OBSTACLES_map_true.Obstacles[0].number_of_points << std::endl;
 		for (int p = 0; p < OBSTACLES_map_true.Obstacles[0].number_of_points; p++)
-			out << ((helicopter_route[p].X - helicopter_pos_X) * meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - OBSTACLES_map_true.Obstacles[0].Array_points[p].Y) * meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_PYLON << std::endl;
+		out << ((helicopter_route[p].X - helicopter_pos_X) * meters_per_pixel) + helicopter_radar__lat << " " << -((helicopter_pos_Y - OBSTACLES_map_true.Obstacles[0].Array_points[p].Y) * meters_per_pixel) + helicopter_radar__lon << " " << 0 << " " << NED_PYLON << std::endl;
 		out << 8 << std::endl;*/
 		out << NED << " " << 1 << " " << "ned" << std::endl;
 		out << LLA << " " << 1 << " " << "lla" << std::endl;
