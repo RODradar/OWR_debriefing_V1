@@ -88,7 +88,7 @@ typedef struct T_INITIAL_data
 //-----------------------------------------
 //		namespace ROD_OMR_V1 
 //-----------------------------------------
-namespace ROD_OMR_V1 
+namespace ROD_OMR_V1
 {
 	using namespace System;
 	using namespace System::ComponentModel;
@@ -105,7 +105,7 @@ namespace ROD_OMR_V1
 	//-----------------------------------------
 	//		Struct:		T_Aux_data
 	//  Todo Alon, 6.8.2013: (1) change to 3d, (2) add =, +,-, and scalar multiplication methods 
-	//		(3) add transformation from cartesian to spherical
+	//		(3) add transformation from cartesian to spherical, to UTM, to NED and to screen.
 	//-----------------------------------------
 	public value struct PointD
 	{
@@ -113,7 +113,7 @@ namespace ROD_OMR_V1
 		double	X;
 		double	Y;
 	};
-	
+
 	//-----------------------------------------
 	//		Struct:		T_Aux_data
 	//-----------------------------------------
@@ -144,36 +144,68 @@ namespace ROD_OMR_V1
 	//-----------------------------------------
 	public value struct T_HELICOPTER_route
 	{
-		float				Helicopter_initial_angle;
-		float				Helicopter_delta_angle;
-		float				Helicopter_angle;
-		PointD				Helicopter_position;
+		float				Helicopter_initial_YAW;
+		float				Helicopter_delta_YAW;
+		float				Helicopter_YAW;
+		PointD				Helicopter_UTM;
 		float				time_stamp;
+	};
+	// ---------------------------------------- -
+	//		SENSOR
+	//-----------------------------------------
+	public value struct T_SENSOR_data
+	{
+		//ISL								//Unit			Description
+		double 			ROW_YAW;			//deg			Yaw angle relative to true north
+		double 			ROW_PITCH;			//deg			Pitch angle relative to horizon
+		double 			ROW_ROLL;			//deg			Pool angle relative to horizon
+		double 			Latitude;			//deg			Estimated position in geodetic latitude
+		double 			Longitude;			//deg			Estimated position in geodetic longitude
+		double 			Altitude;			//m				Estimated height above ellipsoid. (WGS84)
+		double 			VelocityX;			//m/s			Estimated velocity in NED frame. (North)
+		double 			VelocityY;			//m/s			Estimated velocity in NED frame. (East)
+		double 			VelocityZ;			//m/s			Estimated velocity in NED frame. (Down)
+		double 			AccelX;				//m/s^2			Estimated acceleration in body frame. (X-axis)
+		double 			AccelY;				//m/s^2			Estimated acceleration in body frame. (Y-axis)
+		double 			AccelZ;				//m/s^2			Estimated acceleration in body frame. (Z-axis)
+		double 			AngularRateX;		//rad/s			Estimated angular rate in body frame. (X-axis)
+		double 			AngularRateY;		//rad/s			Estimated angular rate in body frame. (Y-axis)
+		double 			AngularRateZ;		//rad/s			Estimated angular rate in body frame. (Z-axis)
+		//INS
+		double			time;				//sec			GPS time of week in seconds.
+		double			AttUncertainty;		//deg			Uncertainty in attitude estimate.
+		double			PosUncertainty;		//m				Uncertainty in position estimate.
+		double			VelUncertainty;		//m/s			Uncertainty in velocity estimate.
+		//Attitude						
+		double 			ATT_YAW;			//deg			Yaw angle 
+		double 			ATT_PITCH;			//deg			Pitch angle 
+		double 			ATT_ROLL;			//deg			Pool angle 
 	};
 	//-----------------------------------------
 	//		Struct:		Target
 	//-----------------------------------------
 	public value struct T_Target
 	{
-		double target_reliability;		// [0 % :100 % ]
-		double target_range;			// [meters from radar]
-		double target_azimuth;			// [rad, 0 is LOS, positive counterclockwise]
-		double target_elevation;		// [rad, 0 is LOS, positive counterclockwise]
-		double target_doppler;			// [m / sec, positive is closing target]
-		double target_polarization;		// [rad, 0 is a horizontal, positive counterclockwise]
-		double time;					// [sec, 0 is a week start]
-		double radar_lat;				// [degree]
-		double radar_lon;				// [degree]
-		double radar_alt;				// [meters]
-		double radar_att_roll;			// [rad, clockwise, relative to horizon, attitude]
-		double radar_att_pitch;			// [rad, clockwise, relative to horizon, attitude]
-		double radar_att_yaw;			// [rad, clockwise, relative to true north, attitude]
-		double radar_ins_roll;			// [rad, clockwise, relative to horizon, instantaneous]
-		double radar_ins_pitch;			// [rad, clockwise, relative to true north, instantaneous]
-		double radar_ins_yaw;			// [rad, 0 is a start position, instantaneous]
-		double radar_velocity_x;		// [m / sec, related to NED]
-		double radar_velocity_y;		// [m / sec, related to NED]
-		double radar_velocity_z;		// [m / sec, related to NED]
+		double			target_reliability;		// [0 % :100 % ]
+		double			target_range;			// [meters from radar]
+		double			target_azimuth;			// [rad, 0 is LOS, positive counterclockwise]
+		double			target_elevation;		// [rad, 0 is LOS, positive counterclockwise]
+		double			target_doppler;			// [m / sec, positive is closing target]
+		double			target_polarization;	// [rad, 0 is a horizontal, positive counterclockwise]
+		T_SENSOR_data	SENSOR_data;			// Sensor data structure
+		//double time;					// [sec, 0 is a week start]
+		//double radar_lat;				// [degree]
+		//double radar_lon;				// [degree]
+		//double radar_alt;				// [meters]
+		//double radar_att_roll;			// [rad, clockwise, relative to horizon, attitude]
+		//double radar_att_pitch;			// [rad, clockwise, relative to horizon, attitude]
+		//double radar_att_yaw;			// [rad, clockwise, relative to true north, attitude]
+		//double radar_ins_roll;			// [rad, clockwise, relative to horizon, instantaneous]
+		//double radar_ins_pitch;			// [rad, clockwise, relative to true north, instantaneous]
+		//double radar_ins_yaw;			// [rad, 0 is a start position, instantaneous]
+		//double radar_velocity_x;		// [m / sec, related to NED]
+		//double radar_velocity_y;		// [m / sec, related to NED]
+		//double radar_velocity_z;		// [m / sec, related to NED]
 	};
 
 	//-----------------------------------------
@@ -286,40 +318,40 @@ namespace ROD_OMR_V1
 	private: System::Windows::Forms::NumericUpDown^  B_MAX_ERROR_RANGE;
 	private: System::Windows::Forms::Label^  label20;
 	private: System::Windows::Forms::Label^  label21;
-private: System::Windows::Forms::NumericUpDown^  B_WIRE_SEGMENT_LENGTH_METER;
-private: System::Windows::Forms::Label^  label24;
-private: System::Windows::Forms::Label^  label25;
-private: System::Windows::Forms::Label^  label27;
-private: System::Windows::Forms::Label^  label26;
-private: System::Windows::Forms::TextBox^  B_GPS_LONG;
-private: System::Windows::Forms::TextBox^  B_GPS_LAT;
-private: System::Windows::Forms::TabControl^  tabControl1;
-private: System::Windows::Forms::TabPage^  Viewer;
+	private: System::Windows::Forms::NumericUpDown^  B_WIRE_SEGMENT_LENGTH_METER;
+	private: System::Windows::Forms::Label^  label24;
+	private: System::Windows::Forms::Label^  label25;
+	private: System::Windows::Forms::Label^  label27;
+	private: System::Windows::Forms::Label^  label26;
+	private: System::Windows::Forms::TextBox^  B_GPS_LONG;
+	private: System::Windows::Forms::TextBox^  B_GPS_LAT;
+	private: System::Windows::Forms::TabControl^  tabControl1;
+	private: System::Windows::Forms::TabPage^  Viewer;
 
-private: System::Windows::Forms::TabPage^  tab_Scenario_generator;
-private: System::Windows::Forms::GroupBox^  groupBox8;
-private: System::Windows::Forms::Button^  B_LOAD_DETCTIONS;
-private: System::Windows::Forms::TextBox^  B_DETECTIONS_FOLDER;
+	private: System::Windows::Forms::TabPage^  tab_Scenario_generator;
+	private: System::Windows::Forms::GroupBox^  groupBox8;
+	private: System::Windows::Forms::Button^  B_LOAD_DETCTIONS;
+	private: System::Windows::Forms::TextBox^  B_DETECTIONS_FOLDER;
 
-private: System::Windows::Forms::GroupBox^  groupBox7;
-private: System::Windows::Forms::Button^  B_LOAD_MAP_IMAGE;
-private: System::Windows::Forms::TextBox^  B_FILE_MAP;
-private: System::Windows::Forms::GroupBox^  groupBox6;
-private: System::Windows::Forms::Button^  B_LOAD_TOM;
-private: System::Windows::Forms::TextBox^  B_FILE_TOM;
-private: System::Windows::Forms::GroupBox^  groupBox9;
-private: System::Windows::Forms::GroupBox^  groupBox10;
-private: System::Windows::Forms::Button^  B_SAVE_DETECTIONS_DIRECTORY;
-private: System::Windows::Forms::TextBox^  B_EXPERIMENT_DIRECTORY;
+	private: System::Windows::Forms::GroupBox^  groupBox7;
+	private: System::Windows::Forms::Button^  B_LOAD_MAP_IMAGE;
+	private: System::Windows::Forms::TextBox^  B_FILE_MAP;
+	private: System::Windows::Forms::GroupBox^  groupBox6;
+	private: System::Windows::Forms::Button^  B_LOAD_TOM;
+	private: System::Windows::Forms::TextBox^  B_FILE_TOM;
+	private: System::Windows::Forms::GroupBox^  groupBox9;
+	private: System::Windows::Forms::GroupBox^  groupBox10;
+	private: System::Windows::Forms::Button^  B_SAVE_DETECTIONS_DIRECTORY;
+	private: System::Windows::Forms::TextBox^  B_EXPERIMENT_DIRECTORY;
 
 
 
-private: System::Windows::Forms::Label^  label50;
-private: System::Windows::Forms::TextBox^  B_MESSAGE;
-private: System::Windows::Forms::FolderBrowserDialog^  B_BROWSE_DIR;
-private: System::Windows::Forms::GroupBox^  groupBox11;
-private: System::Windows::Forms::Button^  B_VIEWER_STEP;
-private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
+	private: System::Windows::Forms::Label^  label50;
+	private: System::Windows::Forms::TextBox^  B_MESSAGE;
+	private: System::Windows::Forms::FolderBrowserDialog^  B_BROWSE_DIR;
+	private: System::Windows::Forms::GroupBox^  groupBox11;
+	private: System::Windows::Forms::Button^  B_VIEWER_STEP;
+	private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
 
 
 
@@ -1424,17 +1456,18 @@ private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
 		void		Obstacles_map_plot(T_OBSTACLES_map obstacles_map, Color pen_Color);
 		void		Obstacles_map_error_function();
 		void		Obstacles_map_load(T_OBSTACLES_map % obstacles_map, char* file_name);
-		
+
 		int			Experiment_init();
 		void		Experiment_finalize();
 		void		Experiment_radar_operation();
 		int			Experiment_create_folder(char* experiment_path);
 		int			Experiment_Save_def_file(char*	experiment_path);
-		
+
 		int			Viewer_init();
 		int			Viewer_finalize();
 		int			Viewer_radar_operation();
-		
+		int			Viewer_calculate_experiment_area();
+
 		void		B_PANEL_MouseClick(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
 		void		B_CLEAR_WIRE_Click(System::Object^  sender, System::EventArgs^  e);
 		void		MyForm_FormClosing(System::Object^  sender, System::Windows::Forms::FormClosingEventArgs^  e);
@@ -1462,7 +1495,7 @@ private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
 		void		B_WIRE_SEGMENT_LENGTH_METER_ValueChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_GPS_LAT_TextChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_GPS_LONG_TextChanged(System::Object^  sender, System::EventArgs^  e);
-		void		B_FILE_DETECTIONS_GENERATOR_TextChanged(System::Object^  sender, System::EventArgs^  e); 
+		void		B_FILE_DETECTIONS_GENERATOR_TextChanged(System::Object^  sender, System::EventArgs^  e);
 		void		B_LOAD_DETCTIONS_Click(System::Object^  sender, System::EventArgs^  e);
 		void		B_LOAD_MAP_IMAGE_Click(System::Object^  sender, System::EventArgs^  e);
 		// Added by Cogniteam
@@ -1471,5 +1504,5 @@ private: System::Windows::Forms::Button^  B_VIEWER_PLAY;
 
 
 
-};
+	};
 }

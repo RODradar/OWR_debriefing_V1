@@ -104,9 +104,9 @@ namespace ROD_OMR_V1
 		Start_wire_from_mouse = false;
 		Experiment_initialized = false;
 		Viewer_initialized = false;
-		HELICOPTER_route_master.Helicopter_initial_angle = 0;
-		HELICOPTER_route_master.Helicopter_delta_angle = 0;
-		HELICOPTER_route_master.Helicopter_position = convert_Screen_to_UTM(PointF(SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 1));
+		HELICOPTER_route_master.Helicopter_initial_YAW = 0;
+		HELICOPTER_route_master.Helicopter_delta_YAW = 0;
+		HELICOPTER_route_master.Helicopter_UTM = convert_Screen_to_UTM(PointF(SCREEN_SIZE_X / 2, SCREEN_SIZE_Y - 1));
 		//-----------------------------------------
 		//		Init GUI -  generator
 		//-----------------------------------------
@@ -862,14 +862,14 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		if (INITIAL_data->route_new == true)
 		{
-			HELICOPTER_route_master.Helicopter_initial_angle = atan((float)((rand() % 100) - 50) / 1000) * 10;
-			HELICOPTER_route_master.Helicopter_delta_angle = atan((float)((rand() % 100) - 50) / 5000);
-			HELICOPTER_route_master.Helicopter_position = convert_Screen_to_UTM(PointF((float)SCREEN_SIZE_X / 2 + (rand() % 100) - 50, (float)SCREEN_SIZE_Y - 1));
+			HELICOPTER_route_master.Helicopter_initial_YAW = atan((float)((rand() % 100) - 50) / 1000) * 10;
+			HELICOPTER_route_master.Helicopter_delta_YAW = atan((float)((rand() % 100) - 50) / 5000);
+			HELICOPTER_route_master.Helicopter_UTM = convert_Screen_to_UTM(PointF((float)SCREEN_SIZE_X / 2 + (rand() % 100) - 50, (float)SCREEN_SIZE_Y - 1));
 			HELICOPTER_route_master.time_stamp = 0;
 		}
 		HELICOPTER_route = HELICOPTER_route_master;
 		// Added by Cogniteam
-		helicopter_routing->Add(HELICOPTER_route.Helicopter_position);
+		helicopter_routing->Add(HELICOPTER_route.Helicopter_UTM);
 		//---------------------------------------------------
 		//		Initialize estimated obstacle map
 		//---------------------------------------------------
@@ -898,6 +898,80 @@ namespace ROD_OMR_V1
 		Experiment_initialized = false;
 		// Added by Cogniteam
 		GroundTruthToObj(helicopter_routing);
+	}
+	// --------------------------------------------------
+	//  Viewer_calculate_experiment_area  
+	//  Alon Slapak 11/6/2015
+	// 	Description:	Find the Lon, Lat and screen size of the experiment
+	// 	Reference: 
+	//  Input value:
+	//  Return Value: 
+	// --------------------------------------------------
+	int MyForm::Viewer_calculate_experiment_area()
+	{
+		T_Target		detection;
+		double			max_Lon = 0;
+		double			min_Lon = (double)MAXINT64;
+		double			max_Lat = 0;
+		double			min_Lat = (double)MAXINT64;
+		int				required_screen_width;
+		//------------------------------------------------------
+		//		Init screen
+		//------------------------------------------------------
+		pin_ptr<T_Target> pinnedPtr = &detection;
+		while (!Recording_file_handle->eof())
+		{
+			//---------------------------------------------------
+			//		Read target
+			//---------------------------------------------------
+			Recording_file_handle->read((char*)(pinnedPtr), sizeof(T_Target));
+			//---------------------------------------------------
+			//		find LON?LAT range
+			//---------------------------------------------------
+			if (detection.SENSOR_data.Longitude > max_Lon)
+			{
+				max_Lon = detection.SENSOR_data.Longitude;
+			}
+			if (detection.SENSOR_data.Longitude < min_Lon)
+			{
+				min_Lon = detection.SENSOR_data.Longitude;
+			}
+			if (detection.SENSOR_data.Latitude > max_Lat)
+			{
+				max_Lat = detection.SENSOR_data.Latitude;
+			}
+			if (detection.SENSOR_data.Latitude < min_Lat)
+			{
+				min_Lat = detection.SENSOR_data.Latitude;
+			}
+		}
+		//---------------------------------------------------
+		//		Return file to beginning 
+		//---------------------------------------------------
+		Recording_file_handle->clear();
+		Recording_file_handle->seekg(0, ios::beg);
+		//---------------------------------------------------
+		//		Calculations
+		//---------------------------------------------------
+		required_screen_width = (int)(max(max_Lon - min_Lon, max_Lat - min_Lat) * 1000) + 1;
+		if (required_screen_width > B_SCREEN_WIDTH->Maximum)
+		{
+			required_screen_width = B_SCREEN_WIDTH->Maximum;
+		}
+		if (required_screen_width < B_SCREEN_WIDTH->Minimum)
+		{
+			required_screen_width = B_SCREEN_WIDTH->Minimum;
+		}
+		INITIAL_data->GPS_latitude	= max_Lat;
+		INITIAL_data->GPS_longitude = min_Lon;
+		INITIAL_data->screen_width  = required_screen_width;
+		//---------------------------------------------------
+		//		Update controls on screen
+		//---------------------------------------------------
+		B_GPS_LAT->Text = INITIAL_data->GPS_latitude.ToString("N6");
+		B_GPS_LONG->Text = INITIAL_data->GPS_longitude.ToString("N6");
+		B_SCREEN_WIDTH->Value = INITIAL_data->screen_width;
+		return GOOD;
 	}
 	// --------------------------------------------------
 	//  Viewer_init  
@@ -935,6 +1009,10 @@ namespace ROD_OMR_V1
 			My_message("Error opening file for viewing.");
 			return FAULT;
 		}
+		//---------------------------------------------------
+		//			Calculate the experiment erea
+		//---------------------------------------------------
+		Viewer_calculate_experiment_area();
 		//---------------------------------------------------
 		//			Prepare screen
 		//---------------------------------------------------
@@ -1001,7 +1079,7 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Calculate helicopter position
 		//---------------------------------------------------	
-		helicopter_Screen = convert_UTM_to_Screen(PointD(detection.radar_lon, detection.radar_lat));
+		helicopter_Screen = convert_UTM_to_Screen(PointD(detection.SENSOR_data.Longitude, detection.SENSOR_data.Latitude));
 		if ((helicopter_Screen.X > 0) && (helicopter_Screen.X < SCREEN_SIZE_X) && (helicopter_Screen.Y > 0) && (helicopter_Screen.Y < SCREEN_SIZE_Y))
 		{
 			//---------------------------------------------------
@@ -1013,7 +1091,7 @@ namespace ROD_OMR_V1
 				//---------------------------------------------------
 				//		Calculate target position
 				//---------------------------------------------------	
-				detection_meters = convert_Spherical_to_Cartesian(PointD(detection.target_range, detection.target_azimuth));
+				detection_meters = convert_Spherical_to_Cartesian(PointD(detection.target_range, detection.target_azimuth + detection.SENSOR_data.ROW_YAW));
 				detection_Screen.X = helicopter_Screen.X + detection_meters.Y / Mega_meters_per_pixel / 1e6;
 				detection_Screen.Y = helicopter_Screen.Y - detection_meters.X / Mega_meters_per_pixel / 1e6;
 				//---------------------------------------------------
@@ -1102,7 +1180,6 @@ namespace ROD_OMR_V1
 	// --------------------------------------------------
 	void MyForm::B_FLY_Click(System::Object^  sender, System::EventArgs^  e)
 	{
-		int				i;
 		//---------------------------------------------------
 		//		Screen borders to UTM: Note, Y=0 at the top side and increases to the bottom side
 		//---------------------------------------------------
@@ -1118,19 +1195,9 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Loop of the radar detection across the route
 		//---------------------------------------------------
-		while ((HELICOPTER_route.Helicopter_position.X > Min.X) && (HELICOPTER_route.Helicopter_position.X < Max.X) && (HELICOPTER_route.Helicopter_position.Y > Min.Y) && (HELICOPTER_route.Helicopter_position.Y < Max.Y))
+		while ((HELICOPTER_route.Helicopter_UTM.X > Min.X) && (HELICOPTER_route.Helicopter_UTM.X < Max.X) && (HELICOPTER_route.Helicopter_UTM.Y > Min.Y) && (HELICOPTER_route.Helicopter_UTM.Y < Max.Y))
 		{
 			Experiment_radar_operation();
-			//---------------------------------------------------
-			//		Move to next Point
-			//---------------------------------------------------
-			for (i = 0; i < (int)(INITIAL_data->Helicopter_Speed / INITIAL_data->radar_refresh_time); i++)
-			{
-				HELICOPTER_route.Helicopter_position.X += (double)(sin(HELICOPTER_route.Helicopter_angle * PI / 180) / 1e6);
-				HELICOPTER_route.Helicopter_position.Y += (double)(cos(HELICOPTER_route.Helicopter_angle * PI / 180) / 1e6);
-				HELICOPTER_route.Helicopter_angle += HELICOPTER_route.Helicopter_delta_angle;
-			}
-			HELICOPTER_route.time_stamp += (float)(1.0 / INITIAL_data->radar_refresh_time);
 		}
 		//---------------------------------------------------
 		//		Closure
@@ -1147,7 +1214,6 @@ namespace ROD_OMR_V1
 	// --------------------------------------------------
 	void MyForm::B_STEP_FORWARD_Click(System::Object^  sender, System::EventArgs^  e)
 	{
-		int				i;
 		//---------------------------------------------------
 		//		Screen borders to UTM: Note, Y=0 at the top side and increases to the bottom side
 		//---------------------------------------------------
@@ -1163,19 +1229,9 @@ namespace ROD_OMR_V1
 		//---------------------------------------------------
 		//		Loop of the radar detection across the route
 		//---------------------------------------------------
-		if ((HELICOPTER_route.Helicopter_position.X > Min.X) && (HELICOPTER_route.Helicopter_position.X < Max.X) && (HELICOPTER_route.Helicopter_position.Y > Min.Y) && (HELICOPTER_route.Helicopter_position.Y < Max.Y))
+		if ((HELICOPTER_route.Helicopter_UTM.X > Min.X) && (HELICOPTER_route.Helicopter_UTM.X < Max.X) && (HELICOPTER_route.Helicopter_UTM.Y > Min.Y) && (HELICOPTER_route.Helicopter_UTM.Y < Max.Y))
 		{
 			Experiment_radar_operation();
-			//---------------------------------------------------
-			//		Move to next Point
-			//---------------------------------------------------
-			for (i = 0; i < (int)(INITIAL_data->Helicopter_Speed / INITIAL_data->radar_refresh_time); i++)
-			{
-				HELICOPTER_route.Helicopter_position.X += (double)(sin(HELICOPTER_route.Helicopter_angle * PI / 180)) / 1e6;
-				HELICOPTER_route.Helicopter_position.Y += (double)(cos(HELICOPTER_route.Helicopter_angle * PI / 180)) / 1e6;
-				HELICOPTER_route.Helicopter_angle += HELICOPTER_route.Helicopter_delta_angle;
-			}
-			HELICOPTER_route.time_stamp += (float)(1.0 / INITIAL_data->radar_refresh_time);
 		}
 		else
 		{
@@ -1215,26 +1271,36 @@ namespace ROD_OMR_V1
 		Pen^				Pen_target_false = gcnew Pen(Color::ForestGreen);
 		Graphics^			panel_graphics = B_PANEL->CreateGraphics();
 		//---------------------------------------------------
+		//		Move to next Point
+		//---------------------------------------------------
+		for (i = 0; i < (int)(INITIAL_data->Helicopter_Speed / INITIAL_data->radar_refresh_time); i++)
+		{
+			HELICOPTER_route.Helicopter_UTM.X -= (double)(sin(HELICOPTER_route.Helicopter_YAW * PI / 180)) / 1e6;	// NED: East positive, while YAW is counterclockwise positive
+			HELICOPTER_route.Helicopter_UTM.Y += (double)(cos(HELICOPTER_route.Helicopter_YAW * PI / 180)) / 1e6;   // NED: North positive 
+			HELICOPTER_route.Helicopter_YAW += HELICOPTER_route.Helicopter_delta_YAW;
+		}
+		HELICOPTER_route.time_stamp += (float)(1.0 / INITIAL_data->radar_refresh_time);
+		//---------------------------------------------------
 		//		Plot route
 		//---------------------------------------------------	
-		helicopter_Screen = convert_UTM_to_Screen(HELICOPTER_route.Helicopter_position);
+		helicopter_Screen = convert_UTM_to_Screen(HELICOPTER_route.Helicopter_UTM);
 		panel_graphics->DrawRectangle(Pen_helicopter, (int)helicopter_Screen.X - 1, (int)helicopter_Screen.Y - 1, 3, 3);
 		//---------------------------------------------------
 		//		Helicopter data --> target struct
 		//---------------------------------------------------
-		Target.time = HELICOPTER_route.time_stamp;								// [sec, 0 is a week start]
-		Target.radar_lon = HELICOPTER_route.Helicopter_position.X;				// [Longitude coordiantes]
-		Target.radar_lat = HELICOPTER_route.Helicopter_position.Y;				// [Latitude coordinates]
-		Target.radar_alt = 100;													// [meters]
-		Target.radar_att_roll;													// [deg, clockwise, 0 is North direction]
-		Target.radar_att_pitch;													// [deg, clockwise, 0 is North direction]
-		Target.radar_att_yaw;													// [deg, clockwise, 0 is North direction]
-		Target.radar_ins_roll = 0;													// [rad, 0 is a start position]
-		Target.radar_ins_pitch = 0;													// [rad, 0 is a start position]
-		Target.radar_ins_yaw = HELICOPTER_route.Helicopter_angle;					// [rad, 0 is a start position]
-		Target.radar_velocity_x = INITIAL_data->Helicopter_Speed * sin(HELICOPTER_route.Helicopter_angle * PI / 180);					// [m / sec, related to ? ? ? ? ]
-		Target.radar_velocity_y = INITIAL_data->Helicopter_Speed * cos(HELICOPTER_route.Helicopter_angle * PI / 180);				// [m / sec, related to ? ? ? ? ]
-		Target.radar_velocity_z = 0;													// [m / sec, related to ? ? ? ? ]
+		Target.SENSOR_data.time = HELICOPTER_route.time_stamp;					// [sec, 0 is a week start]
+		Target.SENSOR_data.Longitude = HELICOPTER_route.Helicopter_UTM.X;		// [Longitude coordiantes]
+		Target.SENSOR_data.Latitude = HELICOPTER_route.Helicopter_UTM.Y;		// [Latitude coordinates]
+		Target.SENSOR_data.Altitude = 100;										// [meters]
+		Target.SENSOR_data.ATT_ROLL;											// [deg, clockwise, 0 is North direction]
+		Target.SENSOR_data.ATT_PITCH;											// [deg, clockwise, 0 is North direction]
+		Target.SENSOR_data.ATT_YAW;												// [deg, clockwise, 0 is North direction]
+		Target.SENSOR_data.ROW_ROLL = 0;										// [rad, 0 is a start position]
+		Target.SENSOR_data.ROW_PITCH = 0;										// [rad, 0 is a start position]
+		Target.SENSOR_data.ROW_YAW = HELICOPTER_route.Helicopter_YAW;			// [rad, 0 is a start position]
+		Target.SENSOR_data.VelocityX = INITIAL_data->Helicopter_Speed * sin(HELICOPTER_route.Helicopter_YAW * PI / 180);					// [m / sec, related to ? ? ? ? ]
+		Target.SENSOR_data.VelocityY = INITIAL_data->Helicopter_Speed * cos(HELICOPTER_route.Helicopter_YAW * PI / 180);				// [m / sec, related to ? ? ? ? ]
+		Target.SENSOR_data.VelocityZ = 0;										// [m / sec, related to ? ? ? ? ]
 		//---------------------------------------------------
 		//		Empty Radar_detections_array
 		//---------------------------------------------------		
@@ -1253,7 +1319,7 @@ namespace ROD_OMR_V1
 				//---------------------------------------------------
 				//		Check if target is in radar FAV
 				//---------------------------------------------------
-				if (Target_is_in_RADAR_FOV(HELICOPTER_route.Helicopter_position, HELICOPTER_route.Helicopter_angle, OBSTACLES_map_true.Obstacles[i].Point_1) == GOOD)
+				if (Target_is_in_RADAR_FOV(HELICOPTER_route.Helicopter_UTM, HELICOPTER_route.Helicopter_YAW, OBSTACLES_map_true.Obstacles[i].Point_1) == GOOD)
 				{
 					//---------------------------------------------------
 					//		Generate a radar detection
@@ -1266,13 +1332,13 @@ namespace ROD_OMR_V1
 					//---------------------------------------------------
 					//		Update detections array
 					//---------------------------------------------------
-					Target.target_reliability = 50;					// [0%:100%]
-					Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
-					Target.target_range = Sperical_point.X;					// [meters from radar]
-					Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
-					Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
-					Target.target_doppler = 0;							// [m / sec]
-					Target.target_polarization = PI / 2;				// [rad, counterclockwise, 0 is a horizontal]
+					Target.target_reliability = 50;															// [0%:100%]
+					Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_UTM.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_UTM.Y) * 1e6));
+					Target.target_range = Sperical_point.X;													// [meters from radar]
+					Target.target_azimuth = Sperical_point.Y - HELICOPTER_route.Helicopter_YAW;				// [rad, 0 is LOS, positive counterclockwise]
+					Target.target_elevation = 0;															// [rad, 0 is LOS, positive counterclockwise]
+					Target.target_doppler = 0;																// [m / sec]
+					Target.target_polarization = PI / 2;													// [rad, counterclockwise, 0 is a horizontal]
 					Radar_detections_array[Radar_detections_counter] = Target;
 					Radar_detections_counter++;
 					//---------------------------------------------------
@@ -1293,17 +1359,17 @@ namespace ROD_OMR_V1
 				//---------------------------------------------------
 				//		Check if there is a PNI on the wire
 				//---------------------------------------------------
-				if ((Line_angle(HELICOPTER_route.Helicopter_position, OBSTACLES_map_true.Obstacles[i].Point_1, OBSTACLES_map_true.Obstacles[i].Point_2) < PI / 2) &&
-					(Line_angle(HELICOPTER_route.Helicopter_position, OBSTACLES_map_true.Obstacles[i].Point_2, OBSTACLES_map_true.Obstacles[i].Point_1) < PI / 2))
+				if ((Line_angle(HELICOPTER_route.Helicopter_UTM, OBSTACLES_map_true.Obstacles[i].Point_1, OBSTACLES_map_true.Obstacles[i].Point_2) < PI / 2) &&
+					(Line_angle(HELICOPTER_route.Helicopter_UTM, OBSTACLES_map_true.Obstacles[i].Point_2, OBSTACLES_map_true.Obstacles[i].Point_1) < PI / 2))
 				{
 					//---------------------------------------------------
 					//		Get the PNI position
 					//---------------------------------------------------
-					PNI = Line_point_projection(HELICOPTER_route.Helicopter_position, OBSTACLES_map_true.Obstacles[i].Point_1, OBSTACLES_map_true.Obstacles[i].Point_2);
+					PNI = Line_point_projection(HELICOPTER_route.Helicopter_UTM, OBSTACLES_map_true.Obstacles[i].Point_1, OBSTACLES_map_true.Obstacles[i].Point_2);
 					//---------------------------------------------------
 					//		Check if target is in radar FAV
 					//---------------------------------------------------
-					if (Target_is_in_RADAR_FOV(HELICOPTER_route.Helicopter_position, HELICOPTER_route.Helicopter_angle, PNI) == GOOD)
+					if (Target_is_in_RADAR_FOV(HELICOPTER_route.Helicopter_UTM, HELICOPTER_route.Helicopter_YAW, PNI) == GOOD)
 					{
 						//---------------------------------------------------
 						//		Generate a radar detection
@@ -1316,13 +1382,13 @@ namespace ROD_OMR_V1
 						//---------------------------------------------------
 						//		Update detections array
 						//---------------------------------------------------
-						Target.target_reliability = 50;					// [0%:100%]
-						Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
-						Target.target_range = Sperical_point.X;					// [meters from radar]
-						Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
-						Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
-						Target.target_doppler = 0;							// [m / sec]
-						Target.target_polarization = 0;						// [rad, counterclockwise, 0 is a horizontal]
+						Target.target_reliability = 50;														// [0%:100%]
+						Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_UTM.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_UTM.Y) * 1e6));
+						Target.target_range = Sperical_point.X;												// [meters from radar]
+						Target.target_azimuth = Sperical_point.Y - HELICOPTER_route.Helicopter_YAW;			// [rad, 0 is LOS, positive counterclockwise]
+						Target.target_elevation = 0;														// [rad, 0 is LOS, positive counterclockwise]
+						Target.target_doppler = 0;															// [m / sec]
+						Target.target_polarization = 0;														// [rad, counterclockwise, 0 is a horizontal]
 						Radar_detections_array[Radar_detections_counter] = Target;
 						Radar_detections_counter++;
 						//---------------------------------------------------
@@ -1349,20 +1415,20 @@ namespace ROD_OMR_V1
 			//---------------------------------------------------
 			False_alarm_range = (float)(rand() % INITIAL_data->radar_range);
 			False_alarm_angle = (float)(rand() % INITIAL_data->radar_FOV) - INITIAL_data->radar_FOV / 2;
-			False_alarm_angle += HELICOPTER_route.Helicopter_angle;
+			False_alarm_angle += HELICOPTER_route.Helicopter_YAW;
 
-			estimated_target_UTM.X = HELICOPTER_route.Helicopter_position.X + (float)sin(False_alarm_angle / 180 * PI) * False_alarm_range / 1e6;
-			estimated_target_UTM.Y = HELICOPTER_route.Helicopter_position.Y + (float)cos(False_alarm_angle / 180 * PI) * False_alarm_range / 1e6;
+			estimated_target_UTM.X = HELICOPTER_route.Helicopter_UTM.X + (float)sin(False_alarm_angle / 180 * PI) * False_alarm_range / 1e6;
+			estimated_target_UTM.Y = HELICOPTER_route.Helicopter_UTM.Y + (float)cos(False_alarm_angle / 180 * PI) * False_alarm_range / 1e6;
 			//---------------------------------------------------
 			//		Update detections array
 			//---------------------------------------------------
-			Target.target_reliability = 50;					// [0%:100%]
-			Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_position.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_position.Y) * 1e6));
-			Target.target_range = Sperical_point.X;					// [meters from radar]
-			Target.target_azimuth = Sperical_point.Y;				// [rad, 0 is LOS, positive counterclockwise]
-			Target.target_elevation = 0;							// [rad, 0 is LOS, positive counterclockwise]
-			Target.target_doppler = 0;							// [m / sec]
-			Target.target_polarization = PI / 2 * ((rand() % 2));				// [rad, counterclockwise, 0 is a horizontal]
+			Target.target_reliability = 50;														// [0%:100%]
+			Sperical_point = convert_Cartesian_to_Spherical(PointD((estimated_target_UTM.X - HELICOPTER_route.Helicopter_UTM.X) * 1e6, (estimated_target_UTM.Y - HELICOPTER_route.Helicopter_UTM.Y) * 1e6));
+			Target.target_range = Sperical_point.X;												// [meters from radar]
+			Target.target_azimuth = Sperical_point.Y - HELICOPTER_route.Helicopter_YAW;			// [rad, 0 is LOS, positive counterclockwise]
+			Target.target_elevation = 0;														// [rad, 0 is LOS, positive counterclockwise]
+			Target.target_doppler = 0;															// [m / sec]
+			Target.target_polarization = PI / 2 * ((rand() % 2));								// [rad, counterclockwise, 0 is a horizontal]
 			Radar_detections_array[Radar_detections_counter] = Target;
 			Radar_detections_counter++;
 			//---------------------------------------------------
@@ -1435,9 +1501,9 @@ namespace ROD_OMR_V1
 						//-----------------------------------------
 						//		Reinforce detected pylon  
 						//-----------------------------------------
-						PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth));
-						target.X = HELICOPTER_route.Helicopter_position.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
-						target.Y = HELICOPTER_route.Helicopter_position.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
+						PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth + Radar_detections_array[i].SENSOR_data.ROW_YAW));
+						target.X = HELICOPTER_route.Helicopter_UTM.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
+						target.Y = HELICOPTER_route.Helicopter_UTM.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
 
 						if (Distance_between_points(target, OBSTACLES_map_estimated.Obstacles[k].Point_1) < INITIAL_data->max_range_error_meter)
 						{
@@ -1451,9 +1517,9 @@ namespace ROD_OMR_V1
 				//-----------------------------------------
 				if ((flag_pylon_detected == false) && (OBSTACLES_map_estimated.number_of_obstacles < MAX_OBSTACLES))
 				{
-					PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth));
-					target.X = HELICOPTER_route.Helicopter_position.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
-					target.Y = HELICOPTER_route.Helicopter_position.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
+					PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth + Radar_detections_array[i].SENSOR_data.ROW_YAW));
+					target.X = HELICOPTER_route.Helicopter_UTM.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
+					target.Y = HELICOPTER_route.Helicopter_UTM.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
 					OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Obstacle_type = OBSTACLE_PYLON;
 					OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1 = target;
 					OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Obstacle_reliability = (100 - INITIAL_data->reliability_threshold);
@@ -1473,9 +1539,9 @@ namespace ROD_OMR_V1
 						//-----------------------------------------
 						//		Reinforce detected pylon  
 						//-----------------------------------------
-						PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth));
-						target.X = HELICOPTER_route.Helicopter_position.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
-						target.Y = HELICOPTER_route.Helicopter_position.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
+						PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth + Radar_detections_array[i].SENSOR_data.ROW_YAW));
+						target.X = HELICOPTER_route.Helicopter_UTM.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
+						target.Y = HELICOPTER_route.Helicopter_UTM.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
 
 						if (Distance_between_point_and_line(target, OBSTACLES_map_estimated.Obstacles[k].Point_1, OBSTACLES_map_estimated.Obstacles[k].Point_2) < INITIAL_data->max_range_error_meter)
 						{
@@ -1489,15 +1555,15 @@ namespace ROD_OMR_V1
 				//-----------------------------------------
 				if ((flag_wire_detected == false) && (OBSTACLES_map_estimated.number_of_obstacles < MAX_OBSTACLES))
 				{
-					PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth));
-					target.X = HELICOPTER_route.Helicopter_position.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
-					target.Y = HELICOPTER_route.Helicopter_position.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
+					PointD	Cartesian_point = convert_Spherical_to_Cartesian(PointD(Radar_detections_array[i].target_range, Radar_detections_array[i].target_azimuth + Radar_detections_array[i].SENSOR_data.ROW_YAW));
+					target.X = HELICOPTER_route.Helicopter_UTM.X + Cartesian_point.Y / 1e6;  // X of helicopter is horizontal (Screen), and X target is vertical? 
+					target.Y = HELICOPTER_route.Helicopter_UTM.Y + Cartesian_point.X / 1e6;  // Todo alon 14.5.2015
 					OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Obstacle_type = OBSTACLE_WIRE;
 					OBSTACLES_map_estimated.Obstacles[OBSTACLES_map_estimated.number_of_obstacles].Point_1 = target;
 					//-----------------------------------------
-					//		Find the bearing angle to the target
+					//		Find the azimuth angle to the target
 					//-----------------------------------------
-					theta = atan2(target.X - HELICOPTER_route.Helicopter_position.X, -target.Y + HELICOPTER_route.Helicopter_position.Y);
+					theta = atan2(target.X - HELICOPTER_route.Helicopter_UTM.X, -target.Y + HELICOPTER_route.Helicopter_UTM.Y);
 					//-----------------------------------------
 					//		Find Point_1 & Point_2
 					//-----------------------------------------
@@ -1665,7 +1731,7 @@ namespace ROD_OMR_V1
 		// --------------------------------------------------
 		//	Normalization
 		// --------------------------------------------------
-		estimation_error_index = (int)(SCREEN_SIZE_Y - HELICOPTER_route.Helicopter_position.Y);
+		estimation_error_index = (int)(SCREEN_SIZE_Y - HELICOPTER_route.Helicopter_UTM.Y);
 		for (i = Error_function_old_counter; i < estimation_error_index; i++)
 		{
 			Error_function_array[i + 1] = (estimation_error_PD * RISK_PD + estimation_error_FA * RISK_FA) / (RISK_PD + RISK_FA);
@@ -1851,6 +1917,7 @@ namespace ROD_OMR_V1
 		B_OPEN_OBSTACLES_FILE->FileName = B_OBSTACLES_file->Text;
 		B_OPEN_OBSTACLES_FILE->ShowDialog();
 		B_OBSTACLES_file->Text = B_OPEN_OBSTACLES_FILE->FileName;
+		B_FILE_TOM->Text = B_OPEN_OBSTACLES_FILE->FileName;
 		marshal_context ^ context = gcnew marshal_context();
 		sprintf_s(INITIAL_data->OBSTACLES_file_name, context->marshal_as<const char*>(B_OPEN_OBSTACLES_FILE->FileName));
 		// --------------------------------------------------
@@ -1955,8 +2022,8 @@ namespace ROD_OMR_V1
 		static const int NED_HELICOPTER = 22;
 
 		double meters_per_pixel = ((float)INITIAL_data->screen_width * 1000 / SCREEN_SIZE_X);
-		double helicopter_pos_X = HELICOPTER_route.Helicopter_position.X;
-		double helicopter_pos_Y = HELICOPTER_route.Helicopter_position.Y;
+		double helicopter_pos_X = HELICOPTER_route.Helicopter_UTM.X;
+		double helicopter_pos_Y = HELICOPTER_route.Helicopter_UTM.Y;
 		double helicopter_radar__lat = helicopter_pos_X * meters_per_pixel;
 		double helicopter_radar__lon = helicopter_pos_Y * meters_per_pixel;
 		fstream out = fstream(GROUND_TRUTHS_FILE_NAME, ios::out);

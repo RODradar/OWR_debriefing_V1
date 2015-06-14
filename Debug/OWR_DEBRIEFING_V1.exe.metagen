@@ -41,11 +41,36 @@ Struct ROD_OMR_V1.T_OBSTACLES_map: AutoLayout, AnsiClass, Class, Public, Sequent
 Struct ROD_OMR_V1.T_HELICOPTER_route: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
   :System.ValueType
   Fields:
-    Single Helicopter_initial_angle : Public
-    Single Helicopter_delta_angle : Public
-    Single Helicopter_angle : Public
-    ROD_OMR_V1.PointD Helicopter_position : Public
+    Single Helicopter_initial_YAW : Public
+    Single Helicopter_delta_YAW : Public
+    Single Helicopter_YAW : Public
+    ROD_OMR_V1.PointD Helicopter_UTM : Public
     Single time_stamp : Public
+Struct ROD_OMR_V1.T_SENSOR_data: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Double ROW_YAW : Public
+    Double ROW_PITCH : Public
+    Double ROW_ROLL : Public
+    Double Latitude : Public
+    Double Longitude : Public
+    Double Altitude : Public
+    Double VelocityX : Public
+    Double VelocityY : Public
+    Double VelocityZ : Public
+    Double AccelX : Public
+    Double AccelY : Public
+    Double AccelZ : Public
+    Double AngularRateX : Public
+    Double AngularRateY : Public
+    Double AngularRateZ : Public
+    Double time : Public
+    Double AttUncertainty : Public
+    Double PosUncertainty : Public
+    Double VelUncertainty : Public
+    Double ATT_YAW : Public
+    Double ATT_PITCH : Public
+    Double ATT_ROLL : Public
 Struct ROD_OMR_V1.T_Target: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
   :System.ValueType
   Fields:
@@ -55,19 +80,7 @@ Struct ROD_OMR_V1.T_Target: AutoLayout, AnsiClass, Class, Public, SequentialLayo
     Double target_elevation : Public
     Double target_doppler : Public
     Double target_polarization : Public
-    Double time : Public
-    Double radar_lat : Public
-    Double radar_lon : Public
-    Double radar_alt : Public
-    Double radar_att_roll : Public
-    Double radar_att_pitch : Public
-    Double radar_att_yaw : Public
-    Double radar_ins_roll : Public
-    Double radar_ins_pitch : Public
-    Double radar_ins_yaw : Public
-    Double radar_velocity_x : Public
-    Double radar_velocity_y : Public
-    Double radar_velocity_z : Public
+    ROD_OMR_V1.T_SENSOR_data SENSOR_data : Public
 Class ROD_OMR_V1.MyForm: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
   :System.Windows.Forms.Form
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
