@@ -1493,6 +1493,7 @@ namespace ROD_OMR_V1
 			//-----------------------------------------
 			if (Radar_detections_array[i].target_polarization == PI / 2)
 			{
+				//ronen 
 				flag_pylon_detected = false;
 				for (k = 0; k < OBSTACLES_map_estimated.number_of_obstacles; k++)
 				{
