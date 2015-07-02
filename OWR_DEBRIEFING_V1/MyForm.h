@@ -46,7 +46,8 @@
 //-----------------------------------------
 //		Constants
 //-----------------------------------------
-
+#define	PI								3.14159265
+#define	METER_PER_UTM					1e5
 //-----------------------------------------
 //		Obstacles map
 //-----------------------------------------
@@ -57,7 +58,6 @@
 #define RELIABILITY_THRESHOLD			70
 #define WIRE_SEGMENT_LENGTH_METER		400
 
-#define	PI								3.14159265
 
 //-----------------------------------------
 //		Struct:		T_INITIAL_data
@@ -1456,6 +1456,7 @@ namespace ROD_OMR_V1
 		void		Obstacles_map_plot(T_OBSTACLES_map obstacles_map, Color pen_Color);
 		void		Obstacles_map_error_function();
 		void		Obstacles_map_load(T_OBSTACLES_map % obstacles_map, char* file_name);
+		int			Obstacles_calculate_screen_area(T_OBSTACLES_map % obstacles_map);
 
 		int			Experiment_init();
 		void		Experiment_finalize();
@@ -1466,7 +1467,7 @@ namespace ROD_OMR_V1
 		int			Viewer_init();
 		int			Viewer_finalize();
 		int			Viewer_radar_operation();
-		int			Viewer_calculate_experiment_area();
+		int			Viewer_calculate_screen_area();
 
 		void		B_PANEL_MouseClick(System::Object^  sender, System::Windows::Forms::MouseEventArgs^  e);
 		void		B_CLEAR_WIRE_Click(System::Object^  sender, System::EventArgs^  e);
