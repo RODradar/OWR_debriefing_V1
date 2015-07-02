@@ -1,0 +1,73 @@
+  ROD_OMR_V1.MyForm.resources - Embedded, ContainedInManifestFile, 
+ImageRuntimeVersion: v4.0.30319
+Assembly OWR_DEBRIEFING_V1, Version=0.0.*, Culture=Invariant Language (Invariant Country): 
+	hash=SHA1, flags=PublicKey
+Assembly mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a: 
+	hash=None, flags=None
+Assembly System.Windows.Forms.DataVisualization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35: 
+	hash=None, flags=None
+Assembly System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Struct ROD_OMR_V1.PointD: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+    Void .ctor(Double, Double): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    Double X : Public
+    Double Y : Public
+Struct ROD_OMR_V1.T_Aux_data: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Double obstacle_reliability : Public
+Struct ROD_OMR_V1.T_Obstacle: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Int32 Obstacle_type : Public
+    ROD_OMR_V1.PointD Point_1 : Public
+    ROD_OMR_V1.PointD Point_2 : Public
+    Double Obstacle_reliability : Public
+Struct ROD_OMR_V1.T_OBSTACLES_map: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Int32 number_of_obstacles : Public
+    ROD_OMR_V1.T_Obstacle[] Obstacles : Public
+Struct ROD_OMR_V1.T_HELICOPTER_route: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Single Helicopter_initial_angle : Public
+    Single Helicopter_delta_angle : Public
+    Single Helicopter_angle : Public
+    ROD_OMR_V1.PointD Helicopter_position : Public
+    Single time_stamp : Public
+Struct ROD_OMR_V1.T_Target: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    Double target_reliability : Public
+    Double target_range : Public
+    Double target_azimuth : Public
+    Double target_elevation : Public
+    Double target_doppler : Public
+    Double target_polarization : Public
+    Double time : Public
+    Double radar_lat : Public
+    Double radar_lon : Public
+    Double radar_alt : Public
+    Double radar_att_roll : Public
+    Double radar_att_pitch : Public
+    Double radar_att_yaw : Public
+    Double radar_ins_roll : Public
+    Double radar_ins_pitch : Public
+    Double radar_ins_yaw : Public
+    Double radar_velocity_x : Public
+    Double radar_velocity_y : Public
+    Double radar_velocity_z : Public
+Class ROD_OMR_V1.MyForm: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :System.Windows.Forms.Form
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
